@@ -1,0 +1,82 @@
+name: Integration Test with Custom Branch
+on:
+  workflow_call:
+    inputs:
+      repo_name:
+        description: 'Repository name (sv2-core-test, sv2-pool-apps-test, or sv2-miner-apps-test)'
+        required: true
+        type: string
+      branch_name:
+        description: 'Branch name to test'
+        required: true
+        type: string
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout integration test framework
+        uses: actions/checkout@v4
+        
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-integration-${{ hashFiles('**/Cargo.lock') }}
+          
+      - name: Update dependency for testing
+        run: |
+          echo "�� Updating ${{ inputs.repo_name }} to use branch ${{ inputs.branch_name }}"
+          
+          # Create backup
+          cp Cargo.toml Cargo.toml.backup
+          
+          # Update the specific repository dependency to use the PR branch
+          case "${{ inputs.repo_name }}" in
+            "sv2-core-test")
+              # Update all sv2-core-test dependencies
+              sed -i 's|stratum-common = { git = "https://github.com/GitGab19/sv2-core-test", branch = "main"|stratum-common = { git = "https://github.com/GitGab19/sv2-core-test", branch = "${{ inputs.branch_name }}"|g' Cargo.toml
+              sed -i 's|sv1_api = { git = "https://github.com/GitGab19/sv2-core-test", branch = "main"|sv1_api = { git = "https://github.com/GitGab19/sv2-core-test", branch = "${{ inputs.branch_name }}"|g' Cargo.toml
+              sed -i 's|key-utils = { git = "https://github.com/GitGab19/sv2-core-test", branch = "main"|key-utils = { git = "https://github.com/GitGab19/sv2-core-test", branch = "${{ inputs.branch_name }}"|g' Cargo.toml
+              ;;
+            "sv2-pool-apps-test")
+              # Update all sv2-pool-apps-test dependencies
+              sed -i 's|jd_server = { git = "https://github.com/GitGab19/sv2-pool-apps-test", branch = "main"|jd_server = { git = "https://github.com/GitGab19/sv2-pool-apps-test", branch = "${{ inputs.branch_name }}"|g' Cargo.toml
+              sed -i 's|pool_sv2 = { git = "https://github.com/GitGab19/sv2-pool-apps-test", branch = "main"|pool_sv2 = { git = "https://github.com/GitGab19/sv2-pool-apps-test", branch = "${{ inputs.branch_name }}"|g' Cargo.toml
+              sed -i 's|config-helpers = { git = "https://github.com/GitGab19/sv2-pool-apps-test", branch = "main"|config-helpers = { git = "https://github.com/GitGab19/sv2-pool-apps-test", branch = "${{ inputs.branch_name }}"|g' Cargo.toml
+              ;;
+            "sv2-miner-apps-test")
+              # Update all sv2-miner-apps-test dependencies
+              sed -i 's|jd_client = { git = "https://github.com/GitGab19/sv2-miner-apps-test", branch = "main"|jd_client = { git = "https://github.com/GitGab19/sv2-miner-apps-test", branch = "${{ inputs.branch_name }}"|g' Cargo.toml
+              sed -i 's|translator_sv2 = { git = "https://github.com/GitGab19/sv2-miner-apps-test", branch = "main"|translator_sv2 = { git = "https://github.com/GitGab19/sv2-miner-apps-test", branch = "${{ inputs.branch_name }}"|g' Cargo.toml
+              ;;
+            *)
+              echo "❌ Unknown repository: ${{ inputs.repo_name }}"
+              exit 1
+              ;;
+          esac
+          
+          echo "✅ Updated Cargo.toml for testing"
+          
+      - name: Run integration tests
+        run: |
+          echo "🏃 Running integration tests with updated dependencies..."
+          cargo test --verbose
+          
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "🧹 Restoring original Cargo.toml..."
+          if [ -f Cargo.toml.backup ]; then
+            mv Cargo.toml.backup Cargo.toml
+          fi
