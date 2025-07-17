@@ -68,44 +68,13 @@ jobs:
               sed -i "s|sv1_api = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|sv1_api = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
               sed -i "s|key-utils = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|key-utils = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
               sed -i "s|config-helpers = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|config-helpers = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
-              
-              # Add patch section to override all git dependencies with the same branch
-              echo "🔧 Adding patch section to override git dependencies..."
-              
-              # Remove any existing patch section first
-              sed -i '/^# Override git dependencies/,/^$/d' Cargo.toml
-              sed -i '/^\[patch\."https:\/\/github\.com\/GitGab19\/sv2-core-test"\]/,/^$/d' Cargo.toml
-              
-              # Add the patch section at the end of the file
-              cat >> Cargo.toml << EOF
-
-              # Override git dependencies to ensure all sv2-core-test crates use the same branch
-              [patch."https://github.com/GitGab19/sv2-core-test"]
-              roles_logic_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
-              network_helpers_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
-              binary_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
-              binary_codec_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
-              derive_codec_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
-              noise_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
-              framing_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
-              codec_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
-              common_messages_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
-              template_distribution_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
-              mining_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
-              job_declaration_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
-              channels_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
-              parsers_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
-              buffer_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
-              error_handling = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
-              rpc_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
-              EOF
-              
-              echo "✅ Updated Cargo.toml with patch section for sv2-core-test dependencies"
+              echo "✅ Updated Cargo.toml with sv2-core-test dependencies"
               ;;
             "sv2-pool-apps-test")
               # Update all sv2-pool-apps-test dependencies
               sed -i "s|jd_server = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\"|jd_server = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
               sed -i "s|pool_sv2 = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\"|pool_sv2 = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
+              echo "✅ Updated Cargo.toml with sv2-pool-apps-test dependencies"
               ;;
             "sv2-miner-apps-test")
               # Update all sv2-miner-apps-test dependencies
@@ -113,6 +82,11 @@ jobs:
               sed -i "s|translator_sv2 = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|translator_sv2 = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
               sed -i "s|mining_device = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|mining_device = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
               sed -i "s|mining_device_sv1 = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|mining_device_sv1 = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
+              echo "✅ Updated Cargo.toml with sv2-miner-apps-test dependencies"
+              ;;
+            *)
+              echo "❌ Unknown repository: ${{ inputs.repo_name }}"
+              exit 1
               ;;
           esac
           
