@@ -7,7 +7,7 @@ use async_channel::Sender;
 use std::net::SocketAddr;
 use stratum_common::roles_logic_sv2::{
     codec_sv2::{StandardEitherFrame, Sv2Frame},
-    parsers::AnyMessage,
+    parsers_sv2::AnyMessage,
 };
 use tokio::net::TcpStream;
 
@@ -108,17 +108,17 @@ impl MockUpstream {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::start_template_provider;
+    use crate::{start_template_provider, template_provider::DifficultyLevel};
     use std::{convert::TryInto, net::TcpListener};
     use stratum_common::roles_logic_sv2::{
         codec_sv2::{StandardEitherFrame, Sv2Frame},
         common_messages_sv2::{Protocol, SetupConnection, SetupConnectionSuccess, *},
-        parsers::CommonMessages,
+        parsers_sv2::CommonMessages,
     };
 
     #[tokio::test]
     async fn test_mock_downstream() {
-        let (_tp, socket) = start_template_provider(None);
+        let (_tp, socket) = start_template_provider(None, DifficultyLevel::Low);
         let mock_downstream = MockDownstream::new(socket);
         let send_to_upstream = mock_downstream.start().await;
         let setup_connection =

@@ -26,6 +26,7 @@ tracing-subscriber = { version = "0.3.19", default-features = false }
 stratum-common = { git = "https://github.com/GitGab19/sv2-core-test", branch = "main", features = ["with_network_helpers", "sv1"] }
 sv1_api = { git = "https://github.com/GitGab19/sv2-core-test", branch = "main", optional = true }
 key-utils = { git = "https://github.com/GitGab19/sv2-core-test", branch = "main" }
+config-helpers = { git = "https://github.com/GitGab19/sv2-core-test", branch = "main" }
 
 # Dependencies from sv2-pool-apps-test
 jd_server = { git = "https://github.com/GitGab19/sv2-pool-apps-test", branch = "main" }
@@ -35,13 +36,10 @@ pool_sv2 = { git = "https://github.com/GitGab19/sv2-pool-apps-test", branch = "m
 jd_client = { git = "https://github.com/GitGab19/sv2-miner-apps-test", branch = "main" }
 translator_sv2 = { git = "https://github.com/GitGab19/sv2-miner-apps-test", branch = "main" }
 
-# Shared utilities from any of the repos (using pool-apps as source)
-config-helpers = { git = "https://github.com/GitGab19/sv2-pool-apps-test", branch = "main" }
-
 # Test utilities - we'll need to copy these from the original stratum repo
 # For now, we'll use local paths that we'll copy over
-mining_device = { path = "mining_device" }
-mining_device_sv1 = { path = "mining_device_sv1" }
+mining_device = { path = "test-utils/mining-device" }
+mining_device_sv1 = { path = "test-utils/mining-device-sv1" }
 
 [lib]
 path = "lib/mod.rs"

@@ -18,11 +18,11 @@ name = "mining_device_sv1"
 path = "src/lib.rs"
 
 [dependencies]
-stratum-common = { path = "../../../common" }    
+stratum-common = { git = "https://github.com/GitGab19/sv2-core-test", branch = "main" }    
 async-channel = "1.5.1"
 serde = { version = "1.0.89", default-features = false, features = ["derive", "alloc"] }
 serde_json = { version = "1.0.64", default-features = false, features = ["alloc"] }
-v1 = { path="../../../protocols/v1", package="sv1_api" }
+v1 = { git = "https://github.com/GitGab19/sv2-core-test", branch = "main", package = "sv1_api"}
 num-bigint = "0.4.3"
 num-traits = "0.2.15"
 tracing = "0.1.41"
