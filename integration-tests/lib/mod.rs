@@ -5,6 +5,8 @@ use interceptor::InterceptAction;
 use jd_client::JobDeclaratorClient;
 use jd_server::JobDeclaratorServer;
 use key_utils::{Secp256k1PublicKey, Secp256k1SecretKey};
+use mining_device;
+use mining_device_sv1;
 use pool_sv2::PoolSv2;
 use rand::{rng, Rng};
 use std::{
