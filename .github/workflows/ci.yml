@@ -26,4 +26,4 @@ jobs:
       - name: Run integration tests with latest main from all repos
         run: |
           echo "🧪 Running integration tests with latest main branches..."
-          cargo test --verbose
+          cargo test --features sv1 --verbose

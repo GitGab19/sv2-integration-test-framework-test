@@ -10,6 +10,10 @@ on:
         description: 'Branch name to test'
         required: true
         type: string
+      repo_url:
+        description: 'Repository URL (for handling forks)'
+        required: true
+        type: string
 
 jobs:
   integration-test:
@@ -36,33 +40,61 @@ jobs:
           
       - name: Update dependency for testing
         run: |
-          echo "�� Updating ${{ inputs.repo_name }} to use branch ${{ inputs.branch_name }}"
+          echo "🔧 Updating ${{ inputs.repo_name }} to use branch ${{ inputs.branch_name }}"
           
           # Create backup
           cp Cargo.toml Cargo.toml.backup
           
-          # Update the specific repository dependency to use the PR branch
+          # Use the provided repository URL
+          REPO_URL="${{ inputs.repo_url }}"
+          echo "📍 Using repository URL: $REPO_URL"
+          
+          # Update dependencies based on the repository being tested
           case "${{ inputs.repo_name }}" in
             "sv2-core-test")
               # Update all sv2-core-test dependencies
-              sed -i 's|stratum-common = { git = "https://github.com/GitGab19/sv2-core-test", branch = "main"|stratum-common = { git = "https://github.com/GitGab19/sv2-core-test", branch = "${{ inputs.branch_name }}"|g' Cargo.toml
-              sed -i 's|sv1_api = { git = "https://github.com/GitGab19/sv2-core-test", branch = "main"|sv1_api = { git = "https://github.com/GitGab19/sv2-core-test", branch = "${{ inputs.branch_name }}"|g' Cargo.toml
-              sed -i 's|key-utils = { git = "https://github.com/GitGab19/sv2-core-test", branch = "main"|key-utils = { git = "https://github.com/GitGab19/sv2-core-test", branch = "${{ inputs.branch_name }}"|g' Cargo.toml
+              sed -i "s|stratum-common = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|stratum-common = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
+              sed -i "s|sv1_api = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|sv1_api = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
+              sed -i "s|key-utils = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|key-utils = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
+              sed -i "s|config-helpers = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|config-helpers = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
+              # For sv2-core-test, add patch section to override all git dependencies with local paths
+              echo "🔧 Adding patch section to override git dependencies..."
+              # Override git dependencies with local paths to avoid version conflicts
+              [patch."https://github.com/GitGab19/sv2-core-test"]
+              stratum-common = { path = "../../common" }
+              sv1_api = { path = "../../sv1" }
+              key-utils = { path = "../../utils/key-utils" }
+              config-helpers = { path = "../../roles-utils/config-helpers" }
+              roles_logic_sv2 = { path = "../../sv2/roles-logic-sv2" }
+              network_helpers_sv2 = { path = "../../roles-utils/network-helpers" }
+              binary_sv2 = { path = "../../sv2/binary-sv2" }
+              binary_codec_sv2 = { path = "../../sv2/binary-sv2/codec" }
+              derive_codec_sv2 = { path = "../../sv2/binary-sv2/derive_codec" }
+              noise_sv2 = { path = "../../sv2/noise-sv2" }
+              framing_sv2 = { path = "../../sv2/framing-sv2" }
+              codec_sv2 = { path = "../../sv2/codec-sv2" }
+              common_messages_sv2 = { path = "../../sv2/subprotocols/common-messages" }
+              template_distribution_sv2 = { path = "../../sv2/subprotocols/template-distribution" }
+              mining_sv2 = { path = "../../sv2/subprotocols/mining" }
+              job_declaration_sv2 = { path = "../../sv2/subprotocols/job-declaration" }
+              channels_sv2 = { path = "../../sv2/channels-sv2" }
+              parsers_sv2 = { path = "../../sv2/parsers-sv2" }
+              buffer_sv2 = { path = "../../utils/buffer" }
+              error_handling = { path = "../../utils/error-handling" }
+              rpc_sv2 = { path = "../../roles-utils/rpc" }
+              EOF
               ;;
             "sv2-pool-apps-test")
               # Update all sv2-pool-apps-test dependencies
-              sed -i 's|jd_server = { git = "https://github.com/GitGab19/sv2-pool-apps-test", branch = "main"|jd_server = { git = "https://github.com/GitGab19/sv2-pool-apps-test", branch = "${{ inputs.branch_name }}"|g' Cargo.toml
-              sed -i 's|pool_sv2 = { git = "https://github.com/GitGab19/sv2-pool-apps-test", branch = "main"|pool_sv2 = { git = "https://github.com/GitGab19/sv2-pool-apps-test", branch = "${{ inputs.branch_name }}"|g' Cargo.toml
-              sed -i 's|config-helpers = { git = "https://github.com/GitGab19/sv2-pool-apps-test", branch = "main"|config-helpers = { git = "https://github.com/GitGab19/sv2-pool-apps-test", branch = "${{ inputs.branch_name }}"|g' Cargo.toml
+              sed -i "s|jd_server = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\"|jd_server = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
+              sed -i "s|pool_sv2 = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\"|pool_sv2 = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
               ;;
             "sv2-miner-apps-test")
               # Update all sv2-miner-apps-test dependencies
-              sed -i 's|jd_client = { git = "https://github.com/GitGab19/sv2-miner-apps-test", branch = "main"|jd_client = { git = "https://github.com/GitGab19/sv2-miner-apps-test", branch = "${{ inputs.branch_name }}"|g' Cargo.toml
-              sed -i 's|translator_sv2 = { git = "https://github.com/GitGab19/sv2-miner-apps-test", branch = "main"|translator_sv2 = { git = "https://github.com/GitGab19/sv2-miner-apps-test", branch = "${{ inputs.branch_name }}"|g' Cargo.toml
-              ;;
-            *)
-              echo "❌ Unknown repository: ${{ inputs.repo_name }}"
-              exit 1
+              sed -i "s|jd_client = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|jd_client = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
+              sed -i "s|translator_sv2 = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|translator_sv2 = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
+              sed -i "s|mining_device = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|mining_device = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
+              sed -i "s|mining_device_sv1 = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|mining_device_sv1 = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
               ;;
           esac
           
