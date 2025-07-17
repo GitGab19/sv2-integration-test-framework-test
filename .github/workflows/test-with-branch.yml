@@ -21,6 +21,9 @@ jobs:
     steps:
       - name: Checkout integration test framework
         uses: actions/checkout@v4
+        with:
+          repository: GitGab19/sv2-integration-test-framework-test
+          path: integration-tests
         
       - name: Setup Rust
         uses: actions-rs/toolchain@v1
@@ -39,6 +42,7 @@ jobs:
           key: ${{ runner.os }}-cargo-integration-${{ hashFiles('**/Cargo.lock') }}
           
       - name: Update dependency for testing
+        working-directory: integration-tests
         run: |
           echo "🔧 Updating ${{ inputs.repo_name }} to use branch ${{ inputs.branch_name }}"
           
@@ -101,12 +105,22 @@ jobs:
           echo "✅ Updated Cargo.toml for testing"
           
       - name: Run integration tests
+        working-directory: integration-tests
         run: |
           echo "🏃 Running integration tests with updated dependencies..."
-          cargo test --verbose
+          echo "📋 Current working directory: $(pwd)"
+          echo "📁 Contents of current directory:"
+          ls -la
+          echo "📄 Checking if this is the integration test framework:"
+          ls -la tests/ lib/
+          echo "📝 Current Cargo.toml dependencies:"
+          grep -A 5 -B 5 "sv2-core-test\|sv2-pool-apps-test\|sv2-miner-apps-test" Cargo.toml || echo "No git dependencies found"
+          echo "🧪 Running cargo test with sv1 features..."
+          cargo test --features sv1 --verbose
           
       - name: Cleanup
         if: always()
+        working-directory: integration-tests
         run: |
           echo "🧹 Restoring original Cargo.toml..."
           if [ -f Cargo.toml.backup ]; then
