@@ -69,30 +69,55 @@ jobs:
               sed -i "s|key-utils = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|key-utils = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
               sed -i "s|config-helpers = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|config-helpers = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
               
+              # Find the actual sv2-core-test directory
+              SV2_CORE_DIR=""
+              if [ -d "../sv2-core-test" ]; then
+                SV2_CORE_DIR="../sv2-core-test"
+              elif [ -d "../../sv2-core-test" ]; then
+                SV2_CORE_DIR="../../sv2-core-test"
+              elif [ -d "../" ]; then
+                # Look for any directory that contains the sv2-core structure
+                for dir in ../*/; do
+                  if [ -d "$dir/common" ] && [ -d "$dir/sv1" ] && [ -d "$dir/sv2" ]; then
+                    SV2_CORE_DIR="${dir%/}"
+                    break
+                  fi
+                done
+              fi
+              
+              if [ -z "$SV2_CORE_DIR" ]; then
+                echo "❌ Could not find sv2-core-test directory structure"
+                echo "📁 Available directories:"
+                ls -la ../
+                exit 1
+              fi
+              
+              echo "📍 Found sv2-core-test at: $SV2_CORE_DIR"
+              
               # Add patch section for sv2-core-test to use local paths
               echo "" >> Cargo.toml
               echo "[patch.\"$REPO_URL\"]" >> Cargo.toml
-              echo "stratum-common = { path = \"../sv2-core-test/common\" }" >> Cargo.toml
-              echo "sv1_api = { path = \"../sv2-core-test/sv1\" }" >> Cargo.toml
-              echo "key-utils = { path = \"../sv2-core-test/utils/key-utils\" }" >> Cargo.toml
-              echo "config-helpers = { path = \"../sv2-core-test/roles-utils/config-helpers\" }" >> Cargo.toml
-              echo "roles_logic_sv2 = { path = \"../sv2-core-test/sv2/roles-logic-sv2\" }" >> Cargo.toml
-              echo "network_helpers_sv2 = { path = \"../sv2-core-test/roles-utils/network-helpers\" }" >> Cargo.toml
-              echo "binary_sv2 = { path = \"../sv2-core-test/sv2/binary-sv2\" }" >> Cargo.toml
-              echo "binary_codec_sv2 = { path = \"../sv2-core-test/sv2/binary-sv2/codec\" }" >> Cargo.toml
-              echo "derive_codec_sv2 = { path = \"../sv2-core-test/sv2/binary-sv2/derive_codec\" }" >> Cargo.toml
-              echo "noise_sv2 = { path = \"../sv2-core-test/sv2/noise-sv2\" }" >> Cargo.toml
-              echo "framing_sv2 = { path = \"../sv2-core-test/sv2/framing-sv2\" }" >> Cargo.toml
-              echo "codec_sv2 = { path = \"../sv2-core-test/sv2/codec-sv2\" }" >> Cargo.toml
-              echo "common_messages_sv2 = { path = \"../sv2-core-test/sv2/subprotocols/common-messages\" }" >> Cargo.toml
-              echo "template_distribution_sv2 = { path = \"../sv2-core-test/sv2/subprotocols/template-distribution\" }" >> Cargo.toml
-              echo "mining_sv2 = { path = \"../sv2-core-test/sv2/subprotocols/mining\" }" >> Cargo.toml
-              echo "job_declaration_sv2 = { path = \"../sv2-core-test/sv2/subprotocols/job-declaration\" }" >> Cargo.toml
-              echo "channels_sv2 = { path = \"../sv2-core-test/sv2/channels-sv2\" }" >> Cargo.toml
-              echo "parsers_sv2 = { path = \"../sv2-core-test/sv2/parsers-sv2\" }" >> Cargo.toml
-              echo "buffer_sv2 = { path = \"../sv2-core-test/utils/buffer\" }" >> Cargo.toml
-              echo "error_handling = { path = \"../sv2-core-test/utils/error-handling\" }" >> Cargo.toml
-              echo "rpc_sv2 = { path = \"../sv2-core-test/roles-utils/rpc\" }" >> Cargo.toml
+              echo "stratum-common = { path = \"$SV2_CORE_DIR/common\" }" >> Cargo.toml
+              echo "sv1_api = { path = \"$SV2_CORE_DIR/sv1\" }" >> Cargo.toml
+              echo "key-utils = { path = \"$SV2_CORE_DIR/utils/key-utils\" }" >> Cargo.toml
+              echo "config-helpers = { path = \"$SV2_CORE_DIR/roles-utils/config-helpers\" }" >> Cargo.toml
+              echo "roles_logic_sv2 = { path = \"$SV2_CORE_DIR/sv2/roles-logic-sv2\" }" >> Cargo.toml
+              echo "network_helpers_sv2 = { path = \"$SV2_CORE_DIR/roles-utils/network-helpers\" }" >> Cargo.toml
+              echo "binary_sv2 = { path = \"$SV2_CORE_DIR/sv2/binary-sv2\" }" >> Cargo.toml
+              echo "binary_codec_sv2 = { path = \"$SV2_CORE_DIR/sv2/binary-sv2/codec\" }" >> Cargo.toml
+              echo "derive_codec_sv2 = { path = \"$SV2_CORE_DIR/sv2/binary-sv2/derive_codec\" }" >> Cargo.toml
+              echo "noise_sv2 = { path = \"$SV2_CORE_DIR/sv2/noise-sv2\" }" >> Cargo.toml
+              echo "framing_sv2 = { path = \"$SV2_CORE_DIR/sv2/framing-sv2\" }" >> Cargo.toml
+              echo "codec_sv2 = { path = \"$SV2_CORE_DIR/sv2/codec-sv2\" }" >> Cargo.toml
+              echo "common_messages_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/common-messages\" }" >> Cargo.toml
+              echo "template_distribution_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/template-distribution\" }" >> Cargo.toml
+              echo "mining_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/mining\" }" >> Cargo.toml
+              echo "job_declaration_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/job-declaration\" }" >> Cargo.toml
+              echo "channels_sv2 = { path = \"$SV2_CORE_DIR/sv2/channels-sv2\" }" >> Cargo.toml
+              echo "parsers_sv2 = { path = \"$SV2_CORE_DIR/sv2/parsers-sv2\" }" >> Cargo.toml
+              echo "buffer_sv2 = { path = \"$SV2_CORE_DIR/utils/buffer\" }" >> Cargo.toml
+              echo "error_handling = { path = \"$SV2_CORE_DIR/utils/error-handling\" }" >> Cargo.toml
+              echo "rpc_sv2 = { path = \"$SV2_CORE_DIR/roles-utils/rpc\" }" >> Cargo.toml
               echo "✅ Updated Cargo.toml with sv2-core-test dependencies and patches"
               ;;
             "sv2-pool-apps-test")
@@ -125,6 +150,8 @@ jobs:
           echo "📋 Current working directory: $(pwd)"
           echo "📁 Contents of current directory:"
           ls -la
+          echo "📁 Contents of parent directory:"
+          ls -la ../
           echo "📄 Checking if this is the integration test framework:"
           ls -la tests/ lib/
           echo "📝 Current Cargo.toml dependencies:"
