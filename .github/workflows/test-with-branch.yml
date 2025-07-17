@@ -23,6 +23,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: GitGab19/sv2-integration-test-framework-test
+          path: integration-tests
         
       - name: Setup Rust
         uses: actions-rs/toolchain@v1
@@ -43,6 +44,9 @@ jobs:
       - name: Update dependency for testing
         run: |
           echo "🔧 Updating ${{ inputs.repo_name }} to use branch ${{ inputs.branch_name }}"
+          
+          # Change to integration tests directory
+          cd integration-tests
           
           # Create backup
           cp Cargo.toml Cargo.toml.backup
@@ -71,13 +75,10 @@ jobs:
               
               # Find the actual sv2-core-test directory
               SV2_CORE_DIR=""
-              if [ -d "../sv2-core-test" ]; then
-                SV2_CORE_DIR="../sv2-core-test"
-              elif [ -d "../../sv2-core-test" ]; then
-                SV2_CORE_DIR="../../sv2-core-test"
-              elif [ -d "../" ]; then
-                # Look for any directory that contains the sv2-core structure
-                for dir in ../*/; do
+              # From integration-tests directory, the main repo should be in the parent's parent
+              if [ -d "../../" ]; then
+                # Look for directories that contain the sv2-core structure  
+                for dir in ../../*/; do
                   if [ -d "$dir/common" ] && [ -d "$dir/sv1" ] && [ -d "$dir/sv2" ]; then
                     SV2_CORE_DIR="${dir%/}"
                     break
@@ -85,10 +86,17 @@ jobs:
                 done
               fi
               
+              # Fallback: check if we're in the main repo directory structure
+              if [ -z "$SV2_CORE_DIR" ] && [ -d "../common" ] && [ -d "../sv1" ] && [ -d "../sv2" ]; then
+                SV2_CORE_DIR=".."
+              fi
+              
               if [ -z "$SV2_CORE_DIR" ]; then
                 echo "❌ Could not find sv2-core-test directory structure"
-                echo "📁 Available directories:"
+                echo "📁 Available directories in ../:"
                 ls -la ../
+                echo "📁 Available directories in ../../:"
+                ls -la ../../
                 exit 1
               fi
               
@@ -147,6 +155,10 @@ jobs:
       - name: Run integration tests
         run: |
           echo "🏃 Running integration tests with updated dependencies..."
+          
+          # Change to integration tests directory
+          cd integration-tests
+          
           echo "📋 Current working directory: $(pwd)"
           echo "📁 Contents of current directory:"
           ls -la
@@ -163,6 +175,7 @@ jobs:
         if: always()
         run: |
           echo "🧹 Restoring original Cargo.toml..."
+          cd integration-tests
           if [ -f Cargo.toml.backup ]; then
             mv Cargo.toml.backup Cargo.toml
           fi
