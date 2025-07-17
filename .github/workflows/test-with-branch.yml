@@ -23,7 +23,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: GitGab19/sv2-integration-test-framework-test
-          path: integration-tests
         
       - name: Setup Rust
         uses: actions-rs/toolchain@v1
@@ -42,16 +41,21 @@ jobs:
           key: ${{ runner.os }}-cargo-integration-${{ hashFiles('**/Cargo.lock') }}
           
       - name: Update dependency for testing
-        working-directory: integration-tests
         run: |
           echo "🔧 Updating ${{ inputs.repo_name }} to use branch ${{ inputs.branch_name }}"
           
           # Create backup
           cp Cargo.toml Cargo.toml.backup
           
-          # Use the provided repository URL
-          REPO_URL="${{ inputs.repo_url }}"
+          # Convert repo_url to full GitHub URL if needed
+          if [[ "${{ inputs.repo_url }}" == *"github.com"* ]]; then
+            REPO_URL="${{ inputs.repo_url }}"
+          else
+            REPO_URL="https://github.com/${{ inputs.repo_url }}"
+          fi
           echo "📍 Using repository URL: $REPO_URL"
+          echo "📋 Original Cargo.toml dependencies:"
+          grep -A 1 -B 1 "git.*github.com" Cargo.toml || echo "No git dependencies found"
           
           # Update dependencies based on the repository being tested
           case "${{ inputs.repo_name }}" in
@@ -61,32 +65,39 @@ jobs:
               sed -i "s|sv1_api = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|sv1_api = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
               sed -i "s|key-utils = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|key-utils = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
               sed -i "s|config-helpers = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|config-helpers = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
-              # For sv2-core-test, add patch section to override all git dependencies with local paths
+              
+              # Add patch section to override all git dependencies with the same branch
               echo "🔧 Adding patch section to override git dependencies..."
-              # Override git dependencies with local paths to avoid version conflicts
-              [patch."https://github.com/GitGab19/sv2-core-test"]
-              stratum-common = { path = "../../common" }
-              sv1_api = { path = "../../sv1" }
-              key-utils = { path = "../../utils/key-utils" }
-              config-helpers = { path = "../../roles-utils/config-helpers" }
-              roles_logic_sv2 = { path = "../../sv2/roles-logic-sv2" }
-              network_helpers_sv2 = { path = "../../roles-utils/network-helpers" }
-              binary_sv2 = { path = "../../sv2/binary-sv2" }
-              binary_codec_sv2 = { path = "../../sv2/binary-sv2/codec" }
-              derive_codec_sv2 = { path = "../../sv2/binary-sv2/derive_codec" }
-              noise_sv2 = { path = "../../sv2/noise-sv2" }
-              framing_sv2 = { path = "../../sv2/framing-sv2" }
-              codec_sv2 = { path = "../../sv2/codec-sv2" }
-              common_messages_sv2 = { path = "../../sv2/subprotocols/common-messages" }
-              template_distribution_sv2 = { path = "../../sv2/subprotocols/template-distribution" }
-              mining_sv2 = { path = "../../sv2/subprotocols/mining" }
-              job_declaration_sv2 = { path = "../../sv2/subprotocols/job-declaration" }
-              channels_sv2 = { path = "../../sv2/channels-sv2" }
-              parsers_sv2 = { path = "../../sv2/parsers-sv2" }
-              buffer_sv2 = { path = "../../utils/buffer" }
-              error_handling = { path = "../../utils/error-handling" }
-              rpc_sv2 = { path = "../../roles-utils/rpc" }
-              EOF
+              
+              # Remove any existing patch section first
+              sed -i '/^# Override git dependencies/,/^$/d' Cargo.toml
+              sed -i '/^\[patch\."https:\/\/github\.com\/GitGab19\/sv2-core-test"\]/,/^$/d' Cargo.toml
+              
+              # Add the patch section at the end of the file
+              cat >> Cargo.toml << EOF
+
+# Override git dependencies to ensure all sv2-core-test crates use the same branch
+[patch."https://github.com/GitGab19/sv2-core-test"]
+roles_logic_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
+network_helpers_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
+binary_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
+binary_codec_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
+derive_codec_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
+noise_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
+framing_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
+codec_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
+common_messages_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
+template_distribution_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
+mining_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
+job_declaration_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
+channels_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
+parsers_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
+buffer_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
+error_handling = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
+rpc_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
+EOF
+              
+              echo "✅ Updated Cargo.toml with patch section for sv2-core-test dependencies"
               ;;
             "sv2-pool-apps-test")
               # Update all sv2-pool-apps-test dependencies
@@ -103,9 +114,10 @@ jobs:
           esac
           
           echo "✅ Updated Cargo.toml for testing"
+          echo "📝 Final Cargo.toml dependencies:"
+          grep -A 1 -B 1 "git.*github.com" Cargo.toml || echo "No git dependencies found"
           
       - name: Run integration tests
-        working-directory: integration-tests
         run: |
           echo "🏃 Running integration tests with updated dependencies..."
           echo "📋 Current working directory: $(pwd)"
@@ -120,7 +132,6 @@ jobs:
           
       - name: Cleanup
         if: always()
-        working-directory: integration-tests
         run: |
           echo "🧹 Restoring original Cargo.toml..."
           if [ -f Cargo.toml.backup ]; then
