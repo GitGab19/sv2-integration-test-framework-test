@@ -57,14 +57,17 @@ jobs:
           echo "📋 Original Cargo.toml dependencies:"
           grep -A 1 -B 1 "git.*github.com" Cargo.toml || echo "No git dependencies found"
           
+          # Set variables for use in sed commands
+          BRANCH_NAME="${{ inputs.branch_name }}"
+          
           # Update dependencies based on the repository being tested
           case "${{ inputs.repo_name }}" in
             "sv2-core-test")
               # Update all sv2-core-test dependencies
-              sed -i "s|stratum-common = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|stratum-common = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
-              sed -i "s|sv1_api = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|sv1_api = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
-              sed -i "s|key-utils = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|key-utils = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
-              sed -i "s|config-helpers = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|config-helpers = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
+              sed -i "s|stratum-common = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|stratum-common = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
+              sed -i "s|sv1_api = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|sv1_api = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
+              sed -i "s|key-utils = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|key-utils = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
+              sed -i "s|config-helpers = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|config-helpers = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
               
               # Add patch section to override all git dependencies with the same branch
               echo "🔧 Adding patch section to override git dependencies..."
@@ -76,40 +79,40 @@ jobs:
               # Add the patch section at the end of the file
               cat >> Cargo.toml << EOF
 
-# Override git dependencies to ensure all sv2-core-test crates use the same branch
-[patch."https://github.com/GitGab19/sv2-core-test"]
-roles_logic_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
-network_helpers_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
-binary_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
-binary_codec_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
-derive_codec_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
-noise_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
-framing_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
-codec_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
-common_messages_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
-template_distribution_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
-mining_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
-job_declaration_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
-channels_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
-parsers_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
-buffer_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
-error_handling = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
-rpc_sv2 = { git = "${REPO_URL}", branch = "${{ inputs.branch_name }}" }
-EOF
+              # Override git dependencies to ensure all sv2-core-test crates use the same branch
+              [patch."https://github.com/GitGab19/sv2-core-test"]
+              roles_logic_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
+              network_helpers_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
+              binary_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
+              binary_codec_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
+              derive_codec_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
+              noise_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
+              framing_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
+              codec_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
+              common_messages_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
+              template_distribution_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
+              mining_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
+              job_declaration_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
+              channels_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
+              parsers_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
+              buffer_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
+              error_handling = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
+              rpc_sv2 = { git = "${REPO_URL}", branch = "${BRANCH_NAME}" }
+              EOF
               
               echo "✅ Updated Cargo.toml with patch section for sv2-core-test dependencies"
               ;;
             "sv2-pool-apps-test")
               # Update all sv2-pool-apps-test dependencies
-              sed -i "s|jd_server = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\"|jd_server = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
-              sed -i "s|pool_sv2 = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\"|pool_sv2 = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
+              sed -i "s|jd_server = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\"|jd_server = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
+              sed -i "s|pool_sv2 = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\"|pool_sv2 = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
               ;;
             "sv2-miner-apps-test")
               # Update all sv2-miner-apps-test dependencies
-              sed -i "s|jd_client = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|jd_client = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
-              sed -i "s|translator_sv2 = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|translator_sv2 = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
-              sed -i "s|mining_device = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|mining_device = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
-              sed -i "s|mining_device_sv1 = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|mining_device_sv1 = { git = \"$REPO_URL\", branch = \"${{ inputs.branch_name }}\"|g" Cargo.toml
+              sed -i "s|jd_client = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|jd_client = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
+              sed -i "s|translator_sv2 = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|translator_sv2 = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
+              sed -i "s|mining_device = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|mining_device = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
+              sed -i "s|mining_device_sv1 = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|mining_device_sv1 = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
               ;;
           esac
           
