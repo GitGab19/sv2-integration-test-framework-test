@@ -153,7 +153,7 @@ jobs:
               
               echo "✅ Found valid sv2-core-test structure at: $SV2_CORE_DIR"
 
-              # Create comprehensive .cargo/config.toml with ALL sv2-core-test dependencies
+              # Create .cargo/config.toml using the exact same patch configuration as the local script
               mkdir -p .cargo
               {
                 echo "# Patch configuration for testing with PR branch of sv2-core-test"
@@ -162,23 +162,23 @@ jobs:
                 echo "sv1_api = { path = \"$SV2_CORE_DIR/sv1\" }"
                 echo "key-utils = { path = \"$SV2_CORE_DIR/utils/key-utils\" }"
                 echo "config-helpers = { path = \"$SV2_CORE_DIR/roles-utils/config-helpers\" }"
-                echo "buffer_sv2 = { path = \"$SV2_CORE_DIR/utils/buffer\" }"
-                echo "error_handling = { path = \"$SV2_CORE_DIR/utils/error-handling\" }"
-                echo "rpc_sv2 = { path = \"$SV2_CORE_DIR/roles-utils/rpc\" }"
-                echo "network_helpers_sv2 = { path = \"$SV2_CORE_DIR/roles-utils/network-helpers\" }"
                 echo "roles_logic_sv2 = { path = \"$SV2_CORE_DIR/sv2/roles-logic-sv2\" }"
-                echo "channels_sv2 = { path = \"$SV2_CORE_DIR/sv2/channels-sv2\" }"
+                echo "network_helpers_sv2 = { path = \"$SV2_CORE_DIR/roles-utils/network-helpers\" }"
                 echo "binary_sv2 = { path = \"$SV2_CORE_DIR/sv2/binary-sv2\" }"
                 echo "binary_codec_sv2 = { path = \"$SV2_CORE_DIR/sv2/binary-sv2/codec\" }"
                 echo "derive_codec_sv2 = { path = \"$SV2_CORE_DIR/sv2/binary-sv2/derive_codec\" }"
-                echo "codec_sv2 = { path = \"$SV2_CORE_DIR/sv2/codec-sv2\" }"
-                echo "framing_sv2 = { path = \"$SV2_CORE_DIR/sv2/framing-sv2\" }"
-                echo "parsers_sv2 = { path = \"$SV2_CORE_DIR/sv2/parsers-sv2\" }"
                 echo "noise_sv2 = { path = \"$SV2_CORE_DIR/sv2/noise-sv2\" }"
+                echo "framing_sv2 = { path = \"$SV2_CORE_DIR/sv2/framing-sv2\" }"
+                echo "codec_sv2 = { path = \"$SV2_CORE_DIR/sv2/codec-sv2\" }"
                 echo "common_messages_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/common-messages\" }"
+                echo "template_distribution_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/template-distribution\" }"
                 echo "mining_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/mining\" }"
                 echo "job_declaration_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/job-declaration\" }"
-                echo "template_distribution_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/template-distribution\" }"
+                echo "channels_sv2 = { path = \"$SV2_CORE_DIR/sv2/channels-sv2\" }"
+                echo "parsers_sv2 = { path = \"$SV2_CORE_DIR/sv2/parsers-sv2\" }"
+                echo "buffer_sv2 = { path = \"$SV2_CORE_DIR/utils/buffer\" }"
+                echo "error_handling = { path = \"$SV2_CORE_DIR/utils/error-handling\" }"
+                echo "rpc_sv2 = { path = \"$SV2_CORE_DIR/roles-utils/rpc\" }"
               } > .cargo/config.toml
 
               # Also patch the direct dependencies in Cargo.toml
