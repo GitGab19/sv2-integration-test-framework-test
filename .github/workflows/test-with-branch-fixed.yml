@@ -505,6 +505,53 @@ jobs:
           echo "🔍 If you see the expected LOCAL/REMOTE pattern above, the PR is being tested correctly!"
           echo "=================================================================="
           
+      - name: 🌳 Show dependency tree for manual verification
+        run: |
+          cd integration-tests
+          echo "🌳 =============================================="
+          echo "🌳 DEPENDENCY TREE - MANUAL VERIFICATION"
+          echo "🌳 =============================================="
+          echo ""
+          echo "📋 This shows exactly which code is being used by pool/miner apps:"
+          echo ""
+          
+          cargo tree --features sv1 | grep -E "(jd_server|pool_sv2|jd_client|translator_sv2|stratum-common|buffer_sv2|key-utils|config-helpers|error_handling)"
+          
+          echo ""
+          echo "🔍 WHAT TO LOOK FOR:"
+          echo ""
+          case "${{ inputs.repo_name }}" in
+            "sv2-core-test")
+              echo "✅ EXPECTED - sv2-core-test crates should show LOCAL paths like:"
+              echo "   stratum-common v3.0.0 (/github/workspace/pr-changes/common)"
+              echo "   buffer_sv2 v2.0.0 (/github/workspace/pr-changes/utils/buffer)"
+              echo ""
+              echo "✅ EXPECTED - pool/miner apps should show GIT URLs like:"
+              echo "   jd_server v0.1.3 (https://github.com/GitGab19/sv2-pool-apps-test?branch=main)"
+              echo "   jd_client v0.1.4 (https://github.com/GitGab19/sv2-miner-apps-test?branch=main)"
+              ;;
+            "sv2-pool-apps-test")
+              echo "✅ EXPECTED - pool apps should show LOCAL paths like:"
+              echo "   jd_server v0.1.3 (/github/workspace/pr-changes/jd-server)"
+              echo "   pool_sv2 v0.1.3 (/github/workspace/pr-changes/pool)"
+              echo ""
+              echo "✅ EXPECTED - sv2-core crates should show GIT URLs like:"
+              echo "   stratum-common v3.0.0 (git+https://github.com/GitGab19/sv2-core-test)"
+              ;;
+            "sv2-miner-apps-test")
+              echo "✅ EXPECTED - miner apps should show LOCAL paths like:"
+              echo "   jd_client v0.1.4 (/github/workspace/pr-changes/jd-client)"
+              echo "   translator_sv2 v1.0.0 (/github/workspace/pr-changes/translator)"
+              echo ""
+              echo "✅ EXPECTED - sv2-core crates should show GIT URLs like:"
+              echo "   stratum-common v3.0.0 (git+https://github.com/GitGab19/sv2-core-test)"
+              ;;
+          esac
+          
+          echo ""
+          echo "🎯 If you see the expected pattern above, your PR changes are being tested correctly!"
+          echo "🌳 =============================================="
+          
       - name: Run integration tests
         timeout-minutes: 30
         run: |
