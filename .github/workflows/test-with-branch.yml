@@ -1,4 +1,5 @@
 name: Integration Test with Custom Branch
+
 on:
   workflow_call:
     inputs:
@@ -15,20 +16,40 @@ on:
         required: true
         type: string
       repo_slug:
-        description: 'Repository slug (e.g., GitGabPoliTo19/sv2-core-test)'
+        description: 'Repository slug (e.g., GitGab19/sv2-core-test)'
         required: true
         type: string
+      pr_number:
+        description: 'PR number (optional, for better logging)'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   integration-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    
     steps:
+      - name: Log test parameters
+        run: |
+          echo "🧪 Starting integration tests for PR"
+          echo "📦 Repository: ${{ inputs.repo_name }}"
+          echo "🌿 Branch: ${{ inputs.branch_name }}"
+          echo "🔗 Repository URL: ${{ inputs.repo_url }}"
+          echo "📊 Repository Slug: ${{ inputs.repo_slug }}"
+          if [ -n "${{ inputs.pr_number }}" ]; then
+            echo "🔢 PR Number: #${{ inputs.pr_number }}"
+          fi
+          echo "⏰ Started at: $(date)"
+
       - name: Derive repo slug from URL
         id: derive_slug
         run: |
           REPO_URL="${{ inputs.repo_url }}"
           REPO_SLUG=$(echo "$REPO_URL" | sed -E 's#(https://github.com/|git@github.com:|.git$)##g')
           echo "slug=$REPO_SLUG" >> $GITHUB_OUTPUT
+          echo "📍 Derived repository slug: $REPO_SLUG"
 
       - name: Checkout repository being tested
         uses: actions/checkout@v4
@@ -36,37 +57,60 @@ jobs:
           repository: ${{ steps.derive_slug.outputs.slug }}
           ref: ${{ inputs.branch_name }}
           path: repo-under-test
+          fetch-depth: 1
+          
+      - name: Verify checkout of repository under test
+        run: |
+          echo "✅ Repository under test checked out successfully"
+          echo "📁 Contents of repo-under-test:"
+          ls -la repo-under-test/
+          echo "📄 Repository info:"
+          cd repo-under-test
+          git log --oneline -5 || echo "No git history available"
           
       - name: Checkout integration test framework
         uses: actions/checkout@v4
         with:
           repository: GitGab19/sv2-integration-test-framework-test
           path: integration-tests
+          fetch-depth: 1
         
+      - name: Verify integration test framework checkout
+        run: |
+          echo "✅ Integration test framework checked out successfully"
+          echo "📁 Contents of integration-tests:"
+          ls -la integration-tests/
+          echo "🧪 Available tests:"
+          ls -la integration-tests/tests/
+          
       - name: Setup Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           profile: minimal
           override: true
+          components: rustfmt, clippy
           
-      - name: Cache cargo registry
+      - name: Cache cargo registry and dependencies
         uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-integration-${{ hashFiles('**/Cargo.lock') }}
+            integration-tests/target
+            repo-under-test/target
+          key: ${{ runner.os }}-cargo-integration-${{ inputs.repo_name }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-integration-${{ inputs.repo_name }}-
+            ${{ runner.os }}-cargo-integration-
           
-      - name: Update dependency for testing
+      - name: Update dependencies for testing
         run: |
-          echo "🔧 Updating ${{ inputs.repo_name }} to use branch ${{ inputs.branch_name }}"
+          echo "🔧 Updating ${{ inputs.repo_name }} dependencies to use branch ${{ inputs.branch_name }}"
           
-          # Change to integration tests directory
           cd integration-tests
           
-          # Create backup
+          # Create backup of original files
           cp Cargo.toml Cargo.toml.backup
           
           # Convert repo_url to full GitHub URL if needed
@@ -75,122 +119,226 @@ jobs:
           else
             REPO_URL="https://github.com/${{ inputs.repo_url }}"
           fi
-          echo "📍 Using repository URL: $REPO_URL"
-          echo "📋 Original Cargo.toml dependencies:"
-          grep -A 1 -B 1 "git.*github.com" Cargo.toml || echo "No git dependencies found"
           
-          # Set variables for use in sed commands
-          BRANCH_NAME="${{ inputs.branch_name }}"
+          echo "📍 Using repository URL: $REPO_URL"
+          echo "🌿 Using branch: ${{ inputs.branch_name }}"
+          
+          # Show original dependencies
+          echo "📋 Original dependencies for ${{ inputs.repo_name }}:"
+          case "${{ inputs.repo_name }}" in
+            "sv2-core-test")
+              grep -E "(stratum-common|sv1_api|key-utils|config-helpers)" Cargo.toml || echo "No matching dependencies found"
+              ;;
+            "sv2-pool-apps-test")
+              grep -E "(jd_server|pool_sv2)" Cargo.toml || echo "No matching dependencies found"
+              ;;
+            "sv2-miner-apps-test")
+              grep -E "(jd_client|translator_sv2|mining_device)" Cargo.toml || echo "No matching dependencies found"
+              ;;
+          esac
           
           # Update dependencies based on the repository being tested
           case "${{ inputs.repo_name }}" in
             "sv2-core-test")
-              # Update all sv2-core-test dependencies
-              sed -i "s|stratum-common = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|stratum-common = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
-              sed -i "s|sv1_api = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|sv1_api = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
-              sed -i "s|key-utils = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|key-utils = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
-              sed -i "s|config-helpers = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|config-helpers = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
+              echo "🔄 Updating sv2-core-test dependencies to use local paths..."
               
-              # Find the actual sv2-core-test directory
-              SV2_CORE_DIR=""
-              # The repository being tested should be at ../repo-under-test
-              if [ -d "../repo-under-test" ] && [ -d "../repo-under-test/common" ] && [ -d "../repo-under-test/sv1" ] && [ -d "../repo-under-test/sv2" ]; then
-                SV2_CORE_DIR="../repo-under-test"
-              fi
-              
-              if [ -z "$SV2_CORE_DIR" ]; then
-                echo "❌ Could not find sv2-core-test directory structure at ../repo-under-test"
-                echo "📁 Available directories in ../:"
-                ls -la ../
-                echo "📁 Contents of ../repo-under-test (if it exists):"
-                ls -la ../repo-under-test/ || echo "Directory does not exist"
+              # Verify the directory structure exists
+              SV2_CORE_DIR="../repo-under-test"
+              if [ ! -d "$SV2_CORE_DIR/common" ] || [ ! -d "$SV2_CORE_DIR/sv1" ] || [ ! -d "$SV2_CORE_DIR/sv2" ]; then
+                echo "❌ Expected sv2-core-test directory structure not found at $SV2_CORE_DIR"
+                echo "📁 Available directories:"
+                ls -la $SV2_CORE_DIR/
                 exit 1
               fi
               
-              echo "📍 Found sv2-core-test at: $SV2_CORE_DIR"
+              echo "✅ Found valid sv2-core-test structure at: $SV2_CORE_DIR"
 
-              # Create .cargo/config.toml with [patch] section to override git dependencies with local paths
-              echo "🔧 Creating .cargo/config.toml with [patch] section..."
+              # Create comprehensive .cargo/config.toml with all sv2-core-test crates
               mkdir -p .cargo
               cat > .cargo/config.toml <<EOL
-[patch.\"$REPO_URL\"]
-stratum-common = { path = \"$SV2_CORE_DIR/common\" }
-sv1_api = { path = \"$SV2_CORE_DIR/sv1\" }
-key-utils = { path = \"$SV2_CORE_DIR/utils/key-utils\" }
-config-helpers = { path = \"$SV2_CORE_DIR/roles-utils/config-helpers\" }
-roles_logic_sv2 = { path = \"$SV2_CORE_DIR/sv2/roles-logic-sv2\" }
-network_helpers_sv2 = { path = \"$SV2_CORE_DIR/roles-utils/network-helpers\" }
-binary_sv2 = { path = \"$SV2_CORE_DIR/sv2/binary-sv2\" }
-binary_codec_sv2 = { path = \"$SV2_CORE_DIR/sv2/binary-sv2/codec\" }
-derive_codec_sv2 = { path = \"$SV2_CORE_DIR/sv2/binary-sv2/derive_codec\" }
-noise_sv2 = { path = \"$SV2_CORE_DIR/sv2/noise-sv2\" }
-framing_sv2 = { path = \"$SV2_CORE_DIR/sv2/framing-sv2\" }
-codec_sv2 = { path = \"$SV2_CORE_DIR/sv2/codec-sv2\" }
-common_messages_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/common-messages\" }
-template_distribution_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/template-distribution\" }
-mining_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/mining\" }
-job_declaration_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/job-declaration\" }
-channels_sv2 = { path = \"$SV2_CORE_DIR/sv2/channels-sv2\" }
-parsers_sv2 = { path = \"$SV2_CORE_DIR/sv2/parsers-sv2\" }
-buffer_sv2 = { path = \"$SV2_CORE_DIR/utils/buffer\" }
-error_handling = { path = \"$SV2_CORE_DIR/utils/error-handling\" }
-rpc_sv2 = { path = \"$SV2_CORE_DIR/roles-utils/rpc\" }
-EOL
+              # Patch configuration for testing with PR branch of sv2-core-test
+              [patch."$REPO_URL"]
+              stratum-common = { path = "$SV2_CORE_DIR/common" }
+              sv1_api = { path = "$SV2_CORE_DIR/sv1" }
+              key-utils = { path = "$SV2_CORE_DIR/utils/key-utils" }
+              config-helpers = { path = "$SV2_CORE_DIR/roles-utils/config-helpers" }
+              network_helpers_sv2 = { path = "$SV2_CORE_DIR/roles-utils/network-helpers" }
+              rpc_sv2 = { path = "$SV2_CORE_DIR/roles-utils/rpc" }
+              roles_logic_sv2 = { path = "$SV2_CORE_DIR/sv2/roles-logic-sv2" }
+              binary_sv2 = { path = "$SV2_CORE_DIR/sv2/binary-sv2" }
+              binary_codec_sv2 = { path = "$SV2_CORE_DIR/sv2/binary-sv2/codec" }
+              derive_codec_sv2 = { path = "$SV2_CORE_DIR/sv2/binary-sv2/derive_codec" }
+              noise_sv2 = { path = "$SV2_CORE_DIR/sv2/noise-sv2" }
+              framing_sv2 = { path = "$SV2_CORE_DIR/sv2/framing-sv2" }
+              codec_sv2 = { path = "$SV2_CORE_DIR/sv2/codec-sv2" }
+              common_messages_sv2 = { path = "$SV2_CORE_DIR/sv2/subprotocols/common-messages" }
+              template_distribution_sv2 = { path = "$SV2_CORE_DIR/sv2/subprotocols/template-distribution" }
+              mining_sv2 = { path = "$SV2_CORE_DIR/sv2/subprotocols/mining" }
+              job_declaration_sv2 = { path = "$SV2_CORE_DIR/sv2/subprotocols/job-declaration" }
+              channels_sv2 = { path = "$SV2_CORE_DIR/sv2/channels-sv2" }
+              parsers_sv2 = { path = "$SV2_CORE_DIR/sv2/parsers-sv2" }
+              buffer_sv2 = { path = "$SV2_CORE_DIR/utils/buffer" }
+              error_handling = { path = "$SV2_CORE_DIR/utils/error-handling" }
+              bip32_key_derivation = { path = "$SV2_CORE_DIR/utils/bip32-key-derivation" }
+              EOL
+
+              # Also patch the direct dependencies in Cargo.toml
+              sed -i "s|stratum-common = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|stratum-common = { path = \"$SV2_CORE_DIR/common\"|g" Cargo.toml
+              sed -i "s|sv1_api = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|sv1_api = { path = \"$SV2_CORE_DIR/sv1\"|g" Cargo.toml  
+              sed -i "s|key-utils = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|key-utils = { path = \"$SV2_CORE_DIR/utils/key-utils\"|g" Cargo.toml
+              sed -i "s|config-helpers = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|config-helpers = { path = \"$SV2_CORE_DIR/roles-utils/config-helpers\"|g" Cargo.toml
               
-              # Patch direct dependencies in Cargo.toml to use local paths
-              sed -i "s|stratum-common = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\" }|stratum-common = { path = \"$SV2_CORE_DIR/common\" }|g" Cargo.toml
-              sed -i "s|sv1_api = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\" }|sv1_api = { path = \"$SV2_CORE_DIR/sv1\" }|g" Cargo.toml
-              sed -i "s|key-utils = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\" }|key-utils = { path = \"$SV2_CORE_DIR/utils/key-utils\" }|g" Cargo.toml
-              sed -i "s|config-helpers = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\" }|config-helpers = { path = \"$SV2_CORE_DIR/roles-utils/config-helpers\" }|g" Cargo.toml
+              echo "✅ Updated sv2-core-test dependencies to use local paths"
               ;;
+              
             "sv2-pool-apps-test")
-              # Update all sv2-pool-apps-test dependencies
-              sed -i "s|jd_server = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\"|jd_server = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
-              sed -i "s|pool_sv2 = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\"|pool_sv2 = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
-              echo "✅ Updated Cargo.toml with sv2-pool-apps-test dependencies"
+              echo "🔄 Updating sv2-pool-apps-test dependencies..."
+              
+              # Verify the directory structure exists
+              POOL_APPS_DIR="../repo-under-test"
+              if [ ! -d "$POOL_APPS_DIR/pool" ] || [ ! -d "$POOL_APPS_DIR/jd-server" ]; then
+                echo "❌ Expected sv2-pool-apps-test directory structure not found at $POOL_APPS_DIR"
+                echo "📁 Available directories:"
+                ls -la $POOL_APPS_DIR/
+                exit 1
+              fi
+              
+              echo "✅ Found valid sv2-pool-apps-test structure at: $POOL_APPS_DIR"
+              
+              # Create .cargo/config.toml for pool apps
+              mkdir -p .cargo
+              cat > .cargo/config.toml <<EOL
+              # Patch configuration for testing with PR branch of sv2-pool-apps-test
+              [patch."$REPO_URL"]
+              jd_server = { path = "$POOL_APPS_DIR/jd-server" }
+              pool_sv2 = { path = "$POOL_APPS_DIR/pool" }
+              EOL
+
+              # Update direct dependencies
+              sed -i "s|jd_server = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\"|jd_server = { path = \"$POOL_APPS_DIR/jd-server\"|g" Cargo.toml
+              sed -i "s|pool_sv2 = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\"|pool_sv2 = { path = \"$POOL_APPS_DIR/pool\"|g" Cargo.toml
+              
+              echo "✅ Updated sv2-pool-apps-test dependencies to use local paths"
               ;;
+              
             "sv2-miner-apps-test")
-              # Update all sv2-miner-apps-test dependencies
-              sed -i "s|jd_client = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|jd_client = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
-              sed -i "s|translator_sv2 = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|translator_sv2 = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
-              sed -i "s|mining_device = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|mining_device = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
-              sed -i "s|mining_device_sv1 = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|mining_device_sv1 = { git = \"$REPO_URL\", branch = \"$BRANCH_NAME\"|g" Cargo.toml
-              echo "✅ Updated Cargo.toml with sv2-miner-apps-test dependencies"
+              echo "🔄 Updating sv2-miner-apps-test dependencies..."
+              
+              # Verify the directory structure exists  
+              MINER_APPS_DIR="../repo-under-test"
+              if [ ! -d "$MINER_APPS_DIR/jd-client" ] || [ ! -d "$MINER_APPS_DIR/translator" ]; then
+                echo "❌ Expected sv2-miner-apps-test directory structure not found at $MINER_APPS_DIR"
+                echo "📁 Available directories:"
+                ls -la $MINER_APPS_DIR/
+                exit 1
+              fi
+              
+              echo "✅ Found valid sv2-miner-apps-test structure at: $MINER_APPS_DIR"
+              
+              # Create .cargo/config.toml for miner apps
+              mkdir -p .cargo
+              cat > .cargo/config.toml <<EOL
+              # Patch configuration for testing with PR branch of sv2-miner-apps-test
+              [patch."$REPO_URL"]
+              jd_client = { path = "$MINER_APPS_DIR/jd-client" }
+              translator_sv2 = { path = "$MINER_APPS_DIR/translator" }
+              mining_device = { path = "$MINER_APPS_DIR/test-utils/mining-device" }
+              mining_device_sv1 = { path = "$MINER_APPS_DIR/test-utils/mining-device-sv1" }
+              EOL
+
+              # Update direct dependencies
+              sed -i "s|jd_client = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|jd_client = { path = \"$MINER_APPS_DIR/jd-client\"|g" Cargo.toml
+              sed -i "s|translator_sv2 = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|translator_sv2 = { path = \"$MINER_APPS_DIR/translator\"|g" Cargo.toml
+              sed -i "s|mining_device = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|mining_device = { path = \"$MINER_APPS_DIR/test-utils/mining-device\"|g" Cargo.toml
+              sed -i "s|mining_device_sv1 = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|mining_device_sv1 = { path = \"$MINER_APPS_DIR/test-utils/mining-device-sv1\"|g" Cargo.toml
+              
+              echo "✅ Updated sv2-miner-apps-test dependencies to use local paths"
               ;;
+              
             *)
               echo "❌ Unknown repository: ${{ inputs.repo_name }}"
+              echo "📋 Supported repositories: sv2-core-test, sv2-pool-apps-test, sv2-miner-apps-test"
               exit 1
               ;;
           esac
           
-          echo "✅ Updated Cargo.toml for testing"
-          echo "📝 Final Cargo.toml dependencies:"
-          grep -A 1 -B 1 "git.*github.com" Cargo.toml || echo "No git dependencies found"
+          # Show the changes made
+          echo "📝 Updated dependencies:"
+          case "${{ inputs.repo_name }}" in
+            "sv2-core-test")
+              grep -E "(stratum-common|sv1_api|key-utils|config-helpers)" Cargo.toml || echo "No matching dependencies found"
+              ;;
+            "sv2-pool-apps-test")
+              grep -E "(jd_server|pool_sv2)" Cargo.toml || echo "No matching dependencies found"
+              ;;
+            "sv2-miner-apps-test")
+              grep -E "(jd_client|translator_sv2|mining_device)" Cargo.toml || echo "No matching dependencies found"
+              ;;
+          esac
+          
+          echo "🔧 Created .cargo/config.toml:"
+          cat .cargo/config.toml
+          
+      - name: Validate Rust project
+        run: |
+          cd integration-tests
+          echo "🔍 Validating Rust project setup..."
+          
+          # Check if Cargo.toml is valid
+          cargo metadata --format-version 1 >/dev/null || {
+            echo "❌ Invalid Cargo.toml after patching"
+            exit 1
+          }
+          
+          echo "✅ Cargo.toml is valid"
+          echo "📦 Project dependencies:"
+          cargo tree --depth 1 || echo "Warning: Could not generate dependency tree"
           
       - name: Run integration tests
         run: |
-          echo "🏃 Running integration tests with updated dependencies..."
-          
-          # Change to integration tests directory
           cd integration-tests
           
-          echo "📋 Current working directory: $(pwd)"
-          echo "📁 Contents of current directory:"
-          ls -la
-          echo "📁 Contents of parent directory:"
-          ls -la ../
-          echo "📄 Checking if this is the integration test framework:"
-          ls -la tests/ lib/
-          echo "📝 Current Cargo.toml dependencies:"
-          grep -A 5 -B 5 "sv2-core-test\|sv2-pool-apps-test\|sv2-miner-apps-test" Cargo.toml || echo "No git dependencies found"
-          echo "🧪 Running cargo test with sv1 features..."
-          cargo test --features sv1 --verbose
+          echo "🧪 Running integration tests with updated dependencies..."
+          echo "📂 Current working directory: $(pwd)"
+          echo "📋 Test files available:"
+          ls -la tests/
           
-      - name: Cleanup
+          # Run tests with appropriate features and timeout
+          echo "🚀 Starting cargo test with sv1 features..."
+          
+          # Set RUST_LOG for better debugging if tests fail
+          export RUST_LOG=debug
+          export RUST_BACKTRACE=1
+          
+          # Run the tests with a reasonable timeout per test
+          timeout 30m cargo test --features sv1 --verbose --no-fail-fast -- --test-threads=1 --nocapture
+          
+          echo "✅ Integration tests completed successfully!"
+          
+      - name: Cleanup and summary
         if: always()
         run: |
-          echo "🧹 Restoring original Cargo.toml..."
+          echo "🧹 Cleaning up and providing summary..."
+          
           cd integration-tests
+          
+          # Restore original files
           if [ -f Cargo.toml.backup ]; then
+            echo "📁 Restoring original Cargo.toml..."
             mv Cargo.toml.backup Cargo.toml
           fi
+          
+          # Clean up .cargo directory
+          if [ -d .cargo ]; then
+            echo "🗑️ Removing .cargo/config.toml..."
+            rm -rf .cargo
+          fi
+          
+          echo "📊 Test Summary:"
+          echo "📦 Repository tested: ${{ inputs.repo_name }}"
+          echo "🌿 Branch tested: ${{ inputs.branch_name }}"
+          if [ -n "${{ inputs.pr_number }}" ]; then
+            echo "🔢 PR Number: #${{ inputs.pr_number }}"
+          fi
+          echo "⏰ Completed at: $(date)"
+          echo "✅ Integration tests workflow finished"
