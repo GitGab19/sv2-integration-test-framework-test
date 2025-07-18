@@ -97,32 +97,40 @@ jobs:
               fi
               
               echo "📍 Found sv2-core-test at: $SV2_CORE_DIR"
+
+              # Create .cargo/config.toml with [patch] section to override git dependencies with local paths
+              echo "🔧 Creating .cargo/config.toml with [patch] section..."
+              mkdir -p .cargo
+              cat > .cargo/config.toml <<EOL
+[patch.\"$REPO_URL\"]
+stratum-common = { path = \"$SV2_CORE_DIR/common\" }
+sv1_api = { path = \"$SV2_CORE_DIR/sv1\" }
+key-utils = { path = \"$SV2_CORE_DIR/utils/key-utils\" }
+config-helpers = { path = \"$SV2_CORE_DIR/roles-utils/config-helpers\" }
+roles_logic_sv2 = { path = \"$SV2_CORE_DIR/sv2/roles-logic-sv2\" }
+network_helpers_sv2 = { path = \"$SV2_CORE_DIR/roles-utils/network-helpers\" }
+binary_sv2 = { path = \"$SV2_CORE_DIR/sv2/binary-sv2\" }
+binary_codec_sv2 = { path = \"$SV2_CORE_DIR/sv2/binary-sv2/codec\" }
+derive_codec_sv2 = { path = \"$SV2_CORE_DIR/sv2/binary-sv2/derive_codec\" }
+noise_sv2 = { path = \"$SV2_CORE_DIR/sv2/noise-sv2\" }
+framing_sv2 = { path = \"$SV2_CORE_DIR/sv2/framing-sv2\" }
+codec_sv2 = { path = \"$SV2_CORE_DIR/sv2/codec-sv2\" }
+common_messages_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/common-messages\" }
+template_distribution_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/template-distribution\" }
+mining_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/mining\" }
+job_declaration_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/job-declaration\" }
+channels_sv2 = { path = \"$SV2_CORE_DIR/sv2/channels-sv2\" }
+parsers_sv2 = { path = \"$SV2_CORE_DIR/sv2/parsers-sv2\" }
+buffer_sv2 = { path = \"$SV2_CORE_DIR/utils/buffer\" }
+error_handling = { path = \"$SV2_CORE_DIR/utils/error-handling\" }
+rpc_sv2 = { path = \"$SV2_CORE_DIR/roles-utils/rpc\" }
+EOL
               
-              # Add patch section for sv2-core-test to use local paths
-              echo "" >> Cargo.toml
-              echo "[patch.\"$REPO_URL\"]" >> Cargo.toml
-              echo "stratum-common = { path = \"$SV2_CORE_DIR/common\" }" >> Cargo.toml
-              echo "sv1_api = { path = \"$SV2_CORE_DIR/sv1\" }" >> Cargo.toml
-              echo "key-utils = { path = \"$SV2_CORE_DIR/utils/key-utils\" }" >> Cargo.toml
-              echo "config-helpers = { path = \"$SV2_CORE_DIR/roles-utils/config-helpers\" }" >> Cargo.toml
-              echo "roles_logic_sv2 = { path = \"$SV2_CORE_DIR/sv2/roles-logic-sv2\" }" >> Cargo.toml
-              echo "network_helpers_sv2 = { path = \"$SV2_CORE_DIR/roles-utils/network-helpers\" }" >> Cargo.toml
-              echo "binary_sv2 = { path = \"$SV2_CORE_DIR/sv2/binary-sv2\" }" >> Cargo.toml
-              echo "binary_codec_sv2 = { path = \"$SV2_CORE_DIR/sv2/binary-sv2/codec\" }" >> Cargo.toml
-              echo "derive_codec_sv2 = { path = \"$SV2_CORE_DIR/sv2/binary-sv2/derive_codec\" }" >> Cargo.toml
-              echo "noise_sv2 = { path = \"$SV2_CORE_DIR/sv2/noise-sv2\" }" >> Cargo.toml
-              echo "framing_sv2 = { path = \"$SV2_CORE_DIR/sv2/framing-sv2\" }" >> Cargo.toml
-              echo "codec_sv2 = { path = \"$SV2_CORE_DIR/sv2/codec-sv2\" }" >> Cargo.toml
-              echo "common_messages_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/common-messages\" }" >> Cargo.toml
-              echo "template_distribution_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/template-distribution\" }" >> Cargo.toml
-              echo "mining_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/mining\" }" >> Cargo.toml
-              echo "job_declaration_sv2 = { path = \"$SV2_CORE_DIR/sv2/subprotocols/job-declaration\" }" >> Cargo.toml
-              echo "channels_sv2 = { path = \"$SV2_CORE_DIR/sv2/channels-sv2\" }" >> Cargo.toml
-              echo "parsers_sv2 = { path = \"$SV2_CORE_DIR/sv2/parsers-sv2\" }" >> Cargo.toml
-              echo "buffer_sv2 = { path = \"$SV2_CORE_DIR/utils/buffer\" }" >> Cargo.toml
-              echo "error_handling = { path = \"$SV2_CORE_DIR/utils/error-handling\" }" >> Cargo.toml
-              echo "rpc_sv2 = { path = \"$SV2_CORE_DIR/roles-utils/rpc\" }" >> Cargo.toml
-              echo "✅ Updated Cargo.toml with sv2-core-test dependencies and patches"
+              # Patch direct dependencies in Cargo.toml to use local paths
+              sed -i "s|stratum-common = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\" }|stratum-common = { path = \"$SV2_CORE_DIR/common\" }|g" Cargo.toml
+              sed -i "s|sv1_api = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\" }|sv1_api = { path = \"$SV2_CORE_DIR/sv1\" }|g" Cargo.toml
+              sed -i "s|key-utils = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\" }|key-utils = { path = \"$SV2_CORE_DIR/utils/key-utils\" }|g" Cargo.toml
+              sed -i "s|config-helpers = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\" }|config-helpers = { path = \"$SV2_CORE_DIR/roles-utils/config-helpers\" }|g" Cargo.toml
               ;;
             "sv2-pool-apps-test")
               # Update all sv2-pool-apps-test dependencies
