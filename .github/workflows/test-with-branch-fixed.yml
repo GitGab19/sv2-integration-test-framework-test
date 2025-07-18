@@ -96,8 +96,18 @@ jobs:
           cd pr-changes
           echo "Current branch: $(git branch --show-current || echo 'detached HEAD')"
           echo "Latest commit: $(git log --oneline -1)"
+          echo "Full commit hash: $(git rev-parse HEAD)"
+          echo "Short commit hash: $(git rev-parse --short HEAD)"
           echo "Repository: ${{ inputs.repo_name }}"
           echo "Branch: ${{ inputs.branch_name }}"
+          echo ""
+          echo "🔖 COMMIT BEING TESTED:"
+          echo "   Repository: ${{ inputs.repo_name }}"
+          echo "   Branch: ${{ inputs.branch_name }}"
+          echo "   Commit: $(git rev-parse HEAD)"
+          echo "   Message: $(git log --oneline -1 --pretty=format:'%s')"
+          echo "   Author: $(git log -1 --pretty=format:'%an <%ae>')"
+          echo "   Date: $(git log -1 --pretty=format:'%ci')"
           
       - name: Checkout integration test framework
         uses: actions/checkout@v4
@@ -154,10 +164,18 @@ jobs:
           # Set up directory paths based on repository being tested
           echo ""
           echo "🔀 Setting up dependency redirects..."
+          
+          # Get commit hash for patch section comments
+          cd ../pr-changes
+          PR_COMMIT_HASH=$(git rev-parse HEAD)
+          PR_SHORT_HASH=$(git rev-parse --short HEAD)
+          cd ../integration-tests
+          
           case "${{ inputs.repo_name }}" in
             "sv2-core-test")
               PR_CHANGES_DIR="../pr-changes"
               echo "📋 Testing sv2-core-test PR - will redirect ALL protocol crates to YOUR changes"
+              echo "🔖 Using commit: $PR_SHORT_HASH ($PR_COMMIT_HASH)"
               
               # Verify YOUR PR changes have the expected structure
               if [ ! -d "$PR_CHANGES_DIR/common" ] || [ ! -d "$PR_CHANGES_DIR/sv1" ]; then
@@ -180,6 +198,8 @@ jobs:
                {
                  echo ""
                  echo "# INTEGRATION TEST OVERRIDE: Use PR changes for all sv2-core-test crates"
+                 echo "# Testing commit: $PR_SHORT_HASH ($PR_COMMIT_HASH)"
+                 echo "# Branch: ${{ inputs.branch_name }} from ${{ inputs.repo_url }}"
                  echo "[patch.\"https://github.com/GitGab19/sv2-core-test\"]"
                  echo "stratum-common = { path = \"$PR_CHANGES_DIR/common\" }"
                  echo "sv1_api = { path = \"$PR_CHANGES_DIR/sv1\" }"
@@ -209,6 +229,7 @@ jobs:
             "sv2-pool-apps-test")
               PR_CHANGES_DIR="../pr-changes"
               echo "📋 Testing sv2-pool-apps-test PR - will redirect pool apps to YOUR changes"
+              echo "🔖 Using commit: $PR_SHORT_HASH ($PR_COMMIT_HASH)"
               
               # Verify YOUR PR changes have the expected structure
               if [ ! -d "$PR_CHANGES_DIR/pool" ] || [ ! -d "$PR_CHANGES_DIR/jd-server" ]; then
@@ -229,6 +250,8 @@ jobs:
                {
                  echo ""
                  echo "# INTEGRATION TEST OVERRIDE: Use PR changes for pool app crates"
+                 echo "# Testing commit: $PR_SHORT_HASH ($PR_COMMIT_HASH)"
+                 echo "# Branch: ${{ inputs.branch_name }} from ${{ inputs.repo_url }}"
                  echo "[patch.\"https://github.com/GitGab19/sv2-pool-apps-test\"]"
                  echo "jd_server = { path = \"$PR_CHANGES_DIR/jd-server\" }"
                  echo "pool_sv2 = { path = \"$PR_CHANGES_DIR/pool\" }"
@@ -239,6 +262,7 @@ jobs:
             "sv2-miner-apps-test")
               PR_CHANGES_DIR="../pr-changes"
               echo "📋 Testing sv2-miner-apps-test PR - will redirect miner apps to YOUR changes"
+              echo "🔖 Using commit: $PR_SHORT_HASH ($PR_COMMIT_HASH)"
               
               # Verify YOUR PR changes have the expected structure
               if [ ! -d "$PR_CHANGES_DIR/jd-client" ] || [ ! -d "$PR_CHANGES_DIR/translator" ]; then
@@ -261,6 +285,8 @@ jobs:
                {
                  echo ""
                  echo "# INTEGRATION TEST OVERRIDE: Use PR changes for miner app crates"
+                 echo "# Testing commit: $PR_SHORT_HASH ($PR_COMMIT_HASH)"
+                 echo "# Branch: ${{ inputs.branch_name }} from ${{ inputs.repo_url }}"
                  echo "[patch.\"https://github.com/GitGab19/sv2-miner-apps-test\"]"
                  echo "jd_client = { path = \"$PR_CHANGES_DIR/jd-client\" }"
                  echo "translator_sv2 = { path = \"$PR_CHANGES_DIR/translator\" }"
@@ -286,8 +312,13 @@ jobs:
           echo "   2. Integration tests will run using YOUR code"
           echo "   3. Any failures indicate YOUR changes break integration"
           echo ""
-          echo "📄 Updated integration test configuration (last 15 lines):"
-          tail -15 Cargo.toml
+          echo "📄 Updated integration test configuration (last 20 lines):"
+          tail -20 Cargo.toml
+          echo ""
+          echo "🔖 COMMIT HASH VERIFICATION:"
+          echo "   Testing commit: $PR_SHORT_HASH"
+          echo "   Full hash: $PR_COMMIT_HASH"
+          echo "   From: ${{ inputs.repo_url }}/tree/${{ inputs.branch_name }}"
           
       - name: 🔍 Verify YOUR PR changes are being used
         run: |
@@ -296,6 +327,20 @@ jobs:
           echo "🔍 VERIFYING YOUR PR CHANGES ARE BEING USED"
           echo "🔍 =============================================="
           echo "📋 Checking that integration tests will actually use YOUR code..."
+          
+          # Get commit info for display
+          cd ../pr-changes
+          PR_COMMIT_HASH=$(git rev-parse HEAD)
+          PR_SHORT_HASH=$(git rev-parse --short HEAD)
+          COMMIT_SUBJECT=$(git log -1 --pretty=format:'%s')
+          cd ../integration-tests
+          
+          echo "🔖 TESTING COMMIT: $PR_SHORT_HASH"
+          echo "   Full hash: $PR_COMMIT_HASH"
+          echo "   Message: $COMMIT_SUBJECT"
+          echo "   Repository: ${{ inputs.repo_name }}"
+          echo "   Branch: ${{ inputs.branch_name }}"
+          echo ""
           
           # Show the complete dependency configuration
           echo "📋 Complete Cargo.toml dependencies section:"
@@ -311,31 +356,31 @@ jobs:
           # Show which specific paths/versions are being used for key crates
           case "${{ inputs.repo_name }}" in
             "sv2-core-test")
-              echo "🧪 Verifying sv2-core-test crates are using PR paths:"
+              echo "🧪 Verifying sv2-core-test crates are using PR paths (commit $PR_SHORT_HASH):"
               cargo tree --features sv1 -e normal --prefix none | grep -E "(stratum-common|sv1_api|key-utils|config-helpers|roles_logic_sv2|network_helpers_sv2|binary_sv2|mining_sv2|job_declaration_sv2)" | head -20
               echo ""
-              echo "📂 Expected path prefix: ../repo-under-test/"
-              echo "✅ If you see 'file://' URLs pointing to ../repo-under-test/, the PR code is being used!"
+              echo "📂 Expected path prefix: ../pr-changes/"
+              echo "✅ If you see 'file://' URLs pointing to ../pr-changes/, the PR code (commit $PR_SHORT_HASH) is being used!"
               ;;
               
             "sv2-pool-apps-test")
-              echo "🧪 Verifying sv2-pool-apps-test crates are using PR paths:"
+              echo "🧪 Verifying sv2-pool-apps-test crates are using PR paths (commit $PR_SHORT_HASH):"
               cargo tree --features sv1 -e normal --prefix none | grep -E "(jd_server|pool_sv2)" | head -10
               echo ""
               echo "🧪 Verifying sv2-core-test crates are using stable main branch:"
               cargo tree --features sv1 -e normal --prefix none | grep -E "(stratum-common|sv1_api|key-utils)" | head -10
               echo ""
-              echo "📂 Expected: pool apps from ../repo-under-test/, core from git main"
+              echo "📂 Expected: pool apps from ../pr-changes/ (commit $PR_SHORT_HASH), core from git main"
               ;;
               
             "sv2-miner-apps-test")
-              echo "🧪 Verifying sv2-miner-apps-test crates are using PR paths:"
+              echo "🧪 Verifying sv2-miner-apps-test crates are using PR paths (commit $PR_SHORT_HASH):"
               cargo tree --features sv1 -e normal --prefix none | grep -E "(jd_client|translator_sv2|mining_device)" | head -10
               echo ""
               echo "🧪 Verifying sv2-core-test crates are using stable main branch:"
               cargo tree --features sv1 -e normal --prefix none | grep -E "(stratum-common|sv1_api|key-utils)" | head -10
               echo ""
-              echo "📂 Expected: miner apps from ../repo-under-test/, core from git main"
+              echo "📂 Expected: miner apps from ../pr-changes/ (commit $PR_SHORT_HASH), core from git main"
               ;;
           esac
           
@@ -354,6 +399,15 @@ jobs:
           cd integration-tests
           echo "📊 Generating comprehensive dependency verification report..."
           
+          # Get commit info for report
+          cd ../pr-changes
+          PR_COMMIT_HASH=$(git rev-parse HEAD)
+          PR_SHORT_HASH=$(git rev-parse --short HEAD)
+          COMMIT_SUBJECT=$(git log -1 --pretty=format:'%s')
+          COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an <%ae>')
+          COMMIT_DATE=$(git log -1 --pretty=format:'%ci')
+          cd ../integration-tests
+          
           # Create a detailed report file
           REPORT_FILE="dependency-verification-report.txt"
           
@@ -363,6 +417,11 @@ jobs:
             echo "=============================================="
             echo "Repository being tested: ${{ inputs.repo_name }}"
             echo "Branch: ${{ inputs.branch_name }}"
+            echo "Commit Hash: $PR_COMMIT_HASH"
+            echo "Short Hash: $PR_SHORT_HASH"
+            echo "Commit Message: $COMMIT_SUBJECT"
+            echo "Author: $COMMIT_AUTHOR"
+            echo "Date: $COMMIT_DATE"
             echo "Generated at: $(date)"
             echo ""
             
@@ -381,7 +440,7 @@ jobs:
             
             echo "🌳 Resolved Dependency Tree (Key SV2 Crates):"
             echo "----------------------------------------------"
-            echo "Legend: file:// = PR code, git:// = remote repo"
+            echo "Legend: file:// = PR code (commit $PR_SHORT_HASH), git:// = remote repo"
             echo ""
             
             # Show resolved paths for all SV2 crates
@@ -393,8 +452,8 @@ jobs:
             
             case "${{ inputs.repo_name }}" in
               "sv2-core-test")
-                echo "For sv2-core-test PR testing, we expect:"
-                echo "• All sv2-core-test crates should show 'file://' paths to ../repo-under-test/"
+                echo "For sv2-core-test PR testing (commit $PR_SHORT_HASH), we expect:"
+                echo "• All sv2-core-test crates should show 'file://' paths to ../pr-changes/"
                 echo "• Pool and miner app crates should show 'git://' URLs to main branches"
                 echo ""
                 echo "🔍 Checking sv2-core-test crates:"
@@ -408,7 +467,7 @@ jobs:
                 ;;
                 
               "sv2-pool-apps-test")
-                echo "For sv2-pool-apps-test PR testing, we expect:"
+                echo "For sv2-pool-apps-test PR testing (commit $PR_SHORT_HASH), we expect:"
                 echo "• Pool app crates (jd_server, pool_sv2) should show 'file://' paths"
                 echo "• sv2-core-test crates should show 'git://' URLs to main branch"
                 echo "• Miner app crates should show 'git://' URLs to main branch"
@@ -424,7 +483,7 @@ jobs:
                 ;;
                 
               "sv2-miner-apps-test")
-                echo "For sv2-miner-apps-test PR testing, we expect:"
+                echo "For sv2-miner-apps-test PR testing (commit $PR_SHORT_HASH), we expect:"
                 echo "• Miner app crates (jd_client, translator_sv2, mining_device*) should show 'file://' paths"
                 echo "• sv2-core-test crates should show 'git://' URLs to main branch"
                 echo "• Pool app crates should show 'git://' URLs to main branch"
@@ -508,11 +567,19 @@ jobs:
       - name: 🌳 Show dependency tree for manual verification
         run: |
           cd integration-tests
+          
+          # Get commit info for display
+          cd ../pr-changes
+          PR_COMMIT_HASH=$(git rev-parse HEAD)
+          PR_SHORT_HASH=$(git rev-parse --short HEAD)
+          cd ../integration-tests
+          
           echo "🌳 =============================================="
           echo "🌳 DEPENDENCY TREE - MANUAL VERIFICATION"
           echo "🌳 =============================================="
           echo ""
           echo "📋 This shows exactly which code is being used by pool/miner apps:"
+          echo "🔖 Testing commit: $PR_SHORT_HASH ($PR_COMMIT_HASH)"
           echo ""
           
           cargo tree --features sv1 | grep -E "(jd_server|pool_sv2|jd_client|translator_sv2|stratum-common|buffer_sv2|key-utils|config-helpers|error_handling)"
@@ -523,8 +590,8 @@ jobs:
           case "${{ inputs.repo_name }}" in
             "sv2-core-test")
               echo "✅ EXPECTED - sv2-core-test crates should show LOCAL paths like:"
-              echo "   stratum-common v3.0.0 (/github/workspace/pr-changes/common)"
-              echo "   buffer_sv2 v2.0.0 (/github/workspace/pr-changes/utils/buffer)"
+              echo "   stratum-common v3.0.0 (/github/workspace/pr-changes/common) [commit $PR_SHORT_HASH]"
+              echo "   buffer_sv2 v2.0.0 (/github/workspace/pr-changes/utils/buffer) [commit $PR_SHORT_HASH]"
               echo ""
               echo "✅ EXPECTED - pool/miner apps should show GIT URLs like:"
               echo "   jd_server v0.1.3 (https://github.com/GitGab19/sv2-pool-apps-test?branch=main)"
@@ -532,16 +599,16 @@ jobs:
               ;;
             "sv2-pool-apps-test")
               echo "✅ EXPECTED - pool apps should show LOCAL paths like:"
-              echo "   jd_server v0.1.3 (/github/workspace/pr-changes/jd-server)"
-              echo "   pool_sv2 v0.1.3 (/github/workspace/pr-changes/pool)"
+              echo "   jd_server v0.1.3 (/github/workspace/pr-changes/jd-server) [commit $PR_SHORT_HASH]"
+              echo "   pool_sv2 v0.1.3 (/github/workspace/pr-changes/pool) [commit $PR_SHORT_HASH]"
               echo ""
               echo "✅ EXPECTED - sv2-core crates should show GIT URLs like:"
               echo "   stratum-common v3.0.0 (git+https://github.com/GitGab19/sv2-core-test)"
               ;;
             "sv2-miner-apps-test")
               echo "✅ EXPECTED - miner apps should show LOCAL paths like:"
-              echo "   jd_client v0.1.4 (/github/workspace/pr-changes/jd-client)"
-              echo "   translator_sv2 v1.0.0 (/github/workspace/pr-changes/translator)"
+              echo "   jd_client v0.1.4 (/github/workspace/pr-changes/jd-client) [commit $PR_SHORT_HASH]"
+              echo "   translator_sv2 v1.0.0 (/github/workspace/pr-changes/translator) [commit $PR_SHORT_HASH]"
               echo ""
               echo "✅ EXPECTED - sv2-core crates should show GIT URLs like:"
               echo "   stratum-common v3.0.0 (git+https://github.com/GitGab19/sv2-core-test)"
@@ -549,22 +616,40 @@ jobs:
           esac
           
           echo ""
-          echo "🎯 If you see the expected pattern above, your PR changes are being tested correctly!"
+          echo "🎯 If you see the expected pattern above, your PR changes (commit $PR_SHORT_HASH) are being tested correctly!"
           echo "🌳 =============================================="
           
       - name: Run integration tests
         timeout-minutes: 30
         run: |
           cd integration-tests
-          echo "🏃 Running integration tests with updated dependencies..."
+          
+          # Get commit info for test logs
+          cd ../pr-changes
+          PR_COMMIT_HASH=$(git rev-parse HEAD)
+          PR_SHORT_HASH=$(git rev-parse --short HEAD)
+          COMMIT_SUBJECT=$(git log -1 --pretty=format:'%s')
+          cd ../integration-tests
+          
+          echo "🏃 =============================================="
+          echo "🏃 RUNNING INTEGRATION TESTS"
+          echo "🏃 =============================================="
+          echo "🔖 Testing commit: $PR_SHORT_HASH"
+          echo "   Full hash: $PR_COMMIT_HASH"
+          echo "   Message: $COMMIT_SUBJECT"
+          echo "   Repository: ${{ inputs.repo_name }}"
+          echo "   Branch: ${{ inputs.branch_name }}"
+          echo ""
           
           # Show effective configuration
           echo "📋 Cargo configuration:"
           echo "├── Working directory: $(pwd)"
-          echo "├── Target repository: ../repo-under-test"
+          echo "├── PR changes directory: ../pr-changes"
           echo "└── Workspace isolation: .cargo/config.toml"
           
           # Run tests with verbose output
+          echo "🧪 Starting integration tests for commit $PR_SHORT_HASH..."
+          echo ""
           cargo test --features sv1 --verbose
           
       - name: Cleanup
@@ -580,4 +665,5 @@ jobs:
             rm -rf .cargo
             echo "✅ Cargo config cleaned up"
           fi
-          echo "🎯 Test completed for ${{ inputs.repo_name }} branch ${{ inputs.branch_name }}" 
+          echo "🎯 Test completed for ${{ inputs.repo_name }} branch ${{ inputs.branch_name }}"
+          echo "🔖 Tested commit: $(cd ../pr-changes && git rev-parse --short HEAD) ($(cd ../pr-changes && git rev-parse HEAD))" 
