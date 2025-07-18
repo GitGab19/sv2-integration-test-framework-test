@@ -94,13 +94,13 @@ jobs:
           # Backup original Cargo.toml
           cp Cargo.toml Cargo.toml.backup
           
-          # CRITICAL FIX: Create .cargo/config.toml to prevent workspace discovery conflicts
-          mkdir -p .cargo
-          cat > .cargo/config.toml << 'EOF'
-          # Prevent Cargo from discovering parent workspaces that could conflict
-          [build]
-          target-dir = "target"
-          EOF
+                     # CRITICAL FIX: Create .cargo/config.toml to prevent workspace discovery conflicts
+           mkdir -p .cargo
+           {
+             echo "# Prevent Cargo from discovering parent workspaces that could conflict"
+             echo "[build]"
+             echo "target-dir = \"target\""
+           } > .cargo/config.toml
 
           # Set up directory paths based on repository being tested
           case "${{ inputs.repo_name }}" in
@@ -121,33 +121,33 @@ jobs:
               sed -i "s|key-utils = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\" }|key-utils = { path = \"$REPO_DIR/utils/key-utils\" }|g" Cargo.toml
               sed -i "s|config-helpers = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\" }|config-helpers = { path = \"$REPO_DIR/roles-utils/config-helpers\" }|g" Cargo.toml
 
-              # Add comprehensive patch section (exactly like local script)
-              cat >> Cargo.toml << EOF
-
-              # Override git dependencies with local paths to avoid version conflicts
-              [patch."https://github.com/GitGab19/sv2-core-test"]
-              stratum-common = { path = "$REPO_DIR/common" }
-              sv1_api = { path = "$REPO_DIR/sv1" }
-              key-utils = { path = "$REPO_DIR/utils/key-utils" }
-              config-helpers = { path = "$REPO_DIR/roles-utils/config-helpers" }
-              roles_logic_sv2 = { path = "$REPO_DIR/sv2/roles-logic-sv2" }
-              network_helpers_sv2 = { path = "$REPO_DIR/roles-utils/network-helpers" }
-              binary_sv2 = { path = "$REPO_DIR/sv2/binary-sv2" }
-              binary_codec_sv2 = { path = "$REPO_DIR/sv2/binary-sv2/codec" }
-              derive_codec_sv2 = { path = "$REPO_DIR/sv2/binary-sv2/derive_codec" }
-              noise_sv2 = { path = "$REPO_DIR/sv2/noise-sv2" }
-              framing_sv2 = { path = "$REPO_DIR/sv2/framing-sv2" }
-              codec_sv2 = { path = "$REPO_DIR/sv2/codec-sv2" }
-              common_messages_sv2 = { path = "$REPO_DIR/sv2/subprotocols/common-messages" }
-              template_distribution_sv2 = { path = "$REPO_DIR/sv2/subprotocols/template-distribution" }
-              mining_sv2 = { path = "$REPO_DIR/sv2/subprotocols/mining" }
-              job_declaration_sv2 = { path = "$REPO_DIR/sv2/subprotocols/job-declaration" }
-              channels_sv2 = { path = "$REPO_DIR/sv2/channels-sv2" }
-              parsers_sv2 = { path = "$REPO_DIR/sv2/parsers-sv2" }
-              buffer_sv2 = { path = "$REPO_DIR/utils/buffer" }
-              error_handling = { path = "$REPO_DIR/utils/error-handling" }
-              rpc_sv2 = { path = "$REPO_DIR/roles-utils/rpc" }
-              EOF
+                             # Add comprehensive patch section (exactly like local script)
+               {
+                 echo ""
+                 echo "# Override git dependencies with local paths to avoid version conflicts"
+                 echo "[patch.\"https://github.com/GitGab19/sv2-core-test\"]"
+                 echo "stratum-common = { path = \"$REPO_DIR/common\" }"
+                 echo "sv1_api = { path = \"$REPO_DIR/sv1\" }"
+                 echo "key-utils = { path = \"$REPO_DIR/utils/key-utils\" }"
+                 echo "config-helpers = { path = \"$REPO_DIR/roles-utils/config-helpers\" }"
+                 echo "roles_logic_sv2 = { path = \"$REPO_DIR/sv2/roles-logic-sv2\" }"
+                 echo "network_helpers_sv2 = { path = \"$REPO_DIR/roles-utils/network-helpers\" }"
+                 echo "binary_sv2 = { path = \"$REPO_DIR/sv2/binary-sv2\" }"
+                 echo "binary_codec_sv2 = { path = \"$REPO_DIR/sv2/binary-sv2/codec\" }"
+                 echo "derive_codec_sv2 = { path = \"$REPO_DIR/sv2/binary-sv2/derive_codec\" }"
+                 echo "noise_sv2 = { path = \"$REPO_DIR/sv2/noise-sv2\" }"
+                 echo "framing_sv2 = { path = \"$REPO_DIR/sv2/framing-sv2\" }"
+                 echo "codec_sv2 = { path = \"$REPO_DIR/sv2/codec-sv2\" }"
+                 echo "common_messages_sv2 = { path = \"$REPO_DIR/sv2/subprotocols/common-messages\" }"
+                 echo "template_distribution_sv2 = { path = \"$REPO_DIR/sv2/subprotocols/template-distribution\" }"
+                 echo "mining_sv2 = { path = \"$REPO_DIR/sv2/subprotocols/mining\" }"
+                 echo "job_declaration_sv2 = { path = \"$REPO_DIR/sv2/subprotocols/job-declaration\" }"
+                 echo "channels_sv2 = { path = \"$REPO_DIR/sv2/channels-sv2\" }"
+                 echo "parsers_sv2 = { path = \"$REPO_DIR/sv2/parsers-sv2\" }"
+                 echo "buffer_sv2 = { path = \"$REPO_DIR/utils/buffer\" }"
+                 echo "error_handling = { path = \"$REPO_DIR/utils/error-handling\" }"
+                 echo "rpc_sv2 = { path = \"$REPO_DIR/roles-utils/rpc\" }"
+               } >> Cargo.toml
               ;;
               
             "sv2-pool-apps-test")
@@ -165,14 +165,14 @@ jobs:
               sed -i "s|jd_server = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\" }|jd_server = { path = \"$REPO_DIR/jd-server\" }|g" Cargo.toml
               sed -i "s|pool_sv2 = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\" }|pool_sv2 = { path = \"$REPO_DIR/pool\" }|g" Cargo.toml
 
-              # Add patch section  
-              cat >> Cargo.toml << EOF
-
-              # Override git dependencies with local paths to avoid version conflicts
-              [patch."https://github.com/GitGab19/sv2-pool-apps-test"]
-              jd_server = { path = "$REPO_DIR/jd-server" }
-              pool_sv2 = { path = "$REPO_DIR/pool" }
-              EOF
+                             # Add patch section  
+               {
+                 echo ""
+                 echo "# Override git dependencies with local paths to avoid version conflicts"
+                 echo "[patch.\"https://github.com/GitGab19/sv2-pool-apps-test\"]"
+                 echo "jd_server = { path = \"$REPO_DIR/jd-server\" }"
+                 echo "pool_sv2 = { path = \"$REPO_DIR/pool\" }"
+               } >> Cargo.toml
               ;;
               
             "sv2-miner-apps-test")
@@ -192,16 +192,16 @@ jobs:
               sed -i "s|mining_device = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\" }|mining_device = { path = \"$REPO_DIR/test-utils/mining-device\" }|g" Cargo.toml
               sed -i "s|mining_device_sv1 = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\" }|mining_device_sv1 = { path = \"$REPO_DIR/test-utils/mining-device-sv1\" }|g" Cargo.toml
 
-              # Add patch section
-              cat >> Cargo.toml << EOF
-
-              # Override git dependencies with local paths to avoid version conflicts  
-              [patch."https://github.com/GitGab19/sv2-miner-apps-test"]
-              jd_client = { path = "$REPO_DIR/jd-client" }
-              translator_sv2 = { path = "$REPO_DIR/translator" }
-              mining_device = { path = "$REPO_DIR/test-utils/mining-device" }
-              mining_device_sv1 = { path = "$REPO_DIR/test-utils/mining-device-sv1" }
-              EOF
+                             # Add patch section
+               {
+                 echo ""
+                 echo "# Override git dependencies with local paths to avoid version conflicts"
+                 echo "[patch.\"https://github.com/GitGab19/sv2-miner-apps-test\"]"
+                 echo "jd_client = { path = \"$REPO_DIR/jd-client\" }"
+                 echo "translator_sv2 = { path = \"$REPO_DIR/translator\" }"
+                 echo "mining_device = { path = \"$REPO_DIR/test-utils/mining-device\" }"
+                 echo "mining_device_sv1 = { path = \"$REPO_DIR/test-utils/mining-device-sv1\" }"
+               } >> Cargo.toml
               ;;
               
             *)
