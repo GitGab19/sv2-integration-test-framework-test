@@ -14,15 +14,26 @@ on:
         description: 'Repository URL (for handling forks)'
         required: true
         type: string
+      repo_slug:
+        description: 'Repository slug (e.g., GitGabPoliTo19/sv2-core-test)'
+        required: true
+        type: string
 
 jobs:
   integration-test:
     runs-on: ubuntu-latest
     steps:
+      - name: Derive repo slug from URL
+        id: derive_slug
+        run: |
+          REPO_URL="${{ inputs.repo_url }}"
+          REPO_SLUG=$(echo "$REPO_URL" | sed -E 's#(https://github.com/|git@github.com:|.git$)##g')
+          echo "slug=$REPO_SLUG" >> $GITHUB_OUTPUT
+
       - name: Checkout repository being tested
         uses: actions/checkout@v4
         with:
-          repository: ${{ inputs.repo_url }}
+          repository: ${{ steps.derive_slug.outputs.slug }}
           ref: ${{ inputs.branch_name }}
           path: repo-under-test
           
