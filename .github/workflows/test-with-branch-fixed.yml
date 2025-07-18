@@ -31,17 +31,44 @@ jobs:
     timeout-minutes: 45
     
     steps:
-      - name: Log test parameters
+      - name: 🧪 Integration Test Setup - What are we testing?
         run: |
-          echo "🧪 Starting integration tests for PR"
-          echo "📦 Repository: ${{ inputs.repo_name }}"
-          echo "🌿 Branch: ${{ inputs.branch_name }}"
-          echo "🔗 Repository URL: ${{ inputs.repo_url }}"
-          echo "📊 Repository Slug: ${{ inputs.repo_slug }}"
+          echo "🧪 =============================================="
+          echo "🧪 SV2 INTEGRATION TEST - TESTING PR CHANGES"
+          echo "🧪 =============================================="
+          echo ""
+          echo "🎯 WHAT ARE WE TESTING?"
+          echo "   Repository with changes: ${{ inputs.repo_name }}"
+          echo "   Branch with PR changes:  ${{ inputs.branch_name }}"
+          echo "   Source repository:       ${{ inputs.repo_url }}"
           if [ -n "${{ inputs.pr_number }}" ]; then
-            echo "🔢 PR Number: #${{ inputs.pr_number }}"
+            echo "   PR Number:              #${{ inputs.pr_number }}"
           fi
-          echo "⏰ Started at: $(date)"
+          echo ""
+          echo "🔍 HOW THE TEST WORKS:"
+          case "${{ inputs.repo_name }}" in
+            "sv2-core-test")
+              echo "   • Integration tests will use YOUR sv2-core-test changes"
+              echo "   • Pool apps (jd-server, pool) will use stable main branch"
+              echo "   • Miner apps (jd-client, translator) will use stable main branch"
+              echo "   • This tests if your protocol changes break pool/miner apps"
+              ;;
+            "sv2-pool-apps-test")
+              echo "   • Integration tests will use YOUR pool app changes"
+              echo "   • Core protocols will use stable main branch"  
+              echo "   • Miner apps will use stable main branch"
+              echo "   • This tests if your pool changes work with stable protocols"
+              ;;
+            "sv2-miner-apps-test")
+              echo "   • Integration tests will use YOUR miner app changes"
+              echo "   • Core protocols will use stable main branch"
+              echo "   • Pool apps will use stable main branch"  
+              echo "   • This tests if your miner changes work with stable protocols"
+              ;;
+          esac
+          echo ""
+          echo "⏰ Test started at: $(date)"
+          echo "🧪 =============================================="
 
       - name: Derive repo slug from URL
         id: derive_slug
@@ -51,13 +78,26 @@ jobs:
           echo "slug=$REPO_SLUG" >> $GITHUB_OUTPUT
           echo "📍 Derived repository slug: $REPO_SLUG"
 
-      - name: Checkout repository being tested
+      - name: 📥 Checkout YOUR repository with PR changes
         uses: actions/checkout@v4
         with:
           repository: ${{ steps.derive_slug.outputs.slug }}
           ref: ${{ inputs.branch_name }}
-          path: repo-under-test
+          path: pr-changes
           fetch-depth: 1
+        
+      - name: 📋 Verify YOUR changes were checked out correctly
+        run: |
+          echo "✅ Successfully checked out ${{ inputs.repo_name }} from your PR"
+          echo "📁 Repository contents:"
+          ls -la pr-changes/
+          echo ""
+          echo "📄 Git info for your changes:"
+          cd pr-changes
+          echo "Current branch: $(git branch --show-current || echo 'detached HEAD')"
+          echo "Latest commit: $(git log --oneline -1)"
+          echo "Repository: ${{ inputs.repo_name }}"
+          echo "Branch: ${{ inputs.branch_name }}"
           
       - name: Checkout integration test framework
         uses: actions/checkout@v4
@@ -85,123 +125,149 @@ jobs:
             ${{ runner.os }}-cargo-integration-${{ inputs.repo_name }}-
             ${{ runner.os }}-cargo-integration-
           
-      - name: Fix workspace conflicts and update dependencies
+      - name: 🔧 Configure integration tests to use YOUR PR changes
         run: |
-          echo "🔧 Fixing workspace conflicts and updating dependencies for ${{ inputs.repo_name }}"
+          echo "🔧 =============================================="
+          echo "🔧 CONFIGURING INTEGRATION TESTS"
+          echo "🔧 =============================================="
+          echo ""
+          echo "🎯 Goal: Make integration tests use YOUR ${{ inputs.repo_name }} changes"
+          echo "📂 Your PR code is in: pr-changes/"
+          echo "🧪 Integration tests are in: integration-tests/"
+          echo ""
           
           cd integration-tests
           
           # Backup original Cargo.toml
           cp Cargo.toml Cargo.toml.backup
+          echo "💾 Backed up original integration test configuration"
           
-                     # CRITICAL FIX: Create .cargo/config.toml to prevent workspace discovery conflicts
-           mkdir -p .cargo
-           {
-             echo "# Prevent Cargo from discovering parent workspaces that could conflict"
-             echo "[build]"
-             echo "target-dir = \"target\""
-           } > .cargo/config.toml
+          # CRITICAL FIX: Create .cargo/config.toml to prevent workspace discovery conflicts
+          mkdir -p .cargo
+          {
+            echo "# Prevent Cargo from discovering parent workspaces that could conflict"
+            echo "[build]"
+            echo "target-dir = \"target\""
+          } > .cargo/config.toml
+          echo "🛡️  Created workspace isolation config"
 
           # Set up directory paths based on repository being tested
+          echo ""
+          echo "🔀 Setting up dependency redirects..."
           case "${{ inputs.repo_name }}" in
             "sv2-core-test")
-              REPO_DIR="../repo-under-test"
-              echo "🔄 Setting up sv2-core-test testing with local paths..."
+              PR_CHANGES_DIR="../pr-changes"
+              echo "📋 Testing sv2-core-test PR - will redirect ALL protocol crates to YOUR changes"
               
-              # Verify directory structure
-              if [ ! -d "$REPO_DIR/common" ] || [ ! -d "$REPO_DIR/sv1" ]; then
-                echo "❌ sv2-core-test structure not found"
-                ls -la $REPO_DIR/
+              # Verify YOUR PR changes have the expected structure
+              if [ ! -d "$PR_CHANGES_DIR/common" ] || [ ! -d "$PR_CHANGES_DIR/sv1" ]; then
+                echo "❌ Expected sv2-core-test structure not found in YOUR PR"
+                echo "📁 Contents of your PR changes:"
+                ls -la $PR_CHANGES_DIR/
                 exit 1
               fi
+              echo "✅ Verified YOUR sv2-core-test PR has expected directory structure"
               
-              # Update direct dependencies to use local paths
-              sed -i "s|stratum-common = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\", features = \[\"with_network_helpers\", \"sv1\"\] }|stratum-common = { path = \"$REPO_DIR/common\", features = [\"with_network_helpers\", \"sv1\"] }|g" Cargo.toml
-              sed -i "s|sv1_api = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\", optional = true }|sv1_api = { path = \"$REPO_DIR/sv1\", optional = true }|g" Cargo.toml
-              sed -i "s|key-utils = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\" }|key-utils = { path = \"$REPO_DIR/utils/key-utils\" }|g" Cargo.toml
-              sed -i "s|config-helpers = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\" }|config-helpers = { path = \"$REPO_DIR/roles-utils/config-helpers\" }|g" Cargo.toml
+              # Redirect integration test dependencies to use YOUR PR changes
+              echo "🔀 Redirecting sv2-core-test dependencies to YOUR PR changes..."
+              sed -i "s|stratum-common = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\", features = \[\"with_network_helpers\", \"sv1\"\] }|stratum-common = { path = \"$PR_CHANGES_DIR/common\", features = [\"with_network_helpers\", \"sv1\"] }|g" Cargo.toml
+              sed -i "s|sv1_api = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\", optional = true }|sv1_api = { path = \"$PR_CHANGES_DIR/sv1\", optional = true }|g" Cargo.toml
+              sed -i "s|key-utils = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\" }|key-utils = { path = \"$PR_CHANGES_DIR/utils/key-utils\" }|g" Cargo.toml
+              sed -i "s|config-helpers = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\" }|config-helpers = { path = \"$PR_CHANGES_DIR/roles-utils/config-helpers\" }|g" Cargo.toml
 
-                             # Add comprehensive patch section (exactly like local script)
+               # Force ALL sv2-core-test crates to use YOUR PR changes
+               echo "🎯 Adding comprehensive patch to force ALL sv2-core-test crates to use YOUR changes..."
                {
                  echo ""
-                 echo "# Override git dependencies with local paths to avoid version conflicts"
+                 echo "# INTEGRATION TEST OVERRIDE: Use PR changes for all sv2-core-test crates"
                  echo "[patch.\"https://github.com/GitGab19/sv2-core-test\"]"
-                 echo "stratum-common = { path = \"$REPO_DIR/common\" }"
-                 echo "sv1_api = { path = \"$REPO_DIR/sv1\" }"
-                 echo "key-utils = { path = \"$REPO_DIR/utils/key-utils\" }"
-                 echo "config-helpers = { path = \"$REPO_DIR/roles-utils/config-helpers\" }"
-                 echo "roles_logic_sv2 = { path = \"$REPO_DIR/sv2/roles-logic-sv2\" }"
-                 echo "network_helpers_sv2 = { path = \"$REPO_DIR/roles-utils/network-helpers\" }"
-                 echo "binary_sv2 = { path = \"$REPO_DIR/sv2/binary-sv2\" }"
-                 echo "binary_codec_sv2 = { path = \"$REPO_DIR/sv2/binary-sv2/codec\" }"
-                 echo "derive_codec_sv2 = { path = \"$REPO_DIR/sv2/binary-sv2/derive_codec\" }"
-                 echo "noise_sv2 = { path = \"$REPO_DIR/sv2/noise-sv2\" }"
-                 echo "framing_sv2 = { path = \"$REPO_DIR/sv2/framing-sv2\" }"
-                 echo "codec_sv2 = { path = \"$REPO_DIR/sv2/codec-sv2\" }"
-                 echo "common_messages_sv2 = { path = \"$REPO_DIR/sv2/subprotocols/common-messages\" }"
-                 echo "template_distribution_sv2 = { path = \"$REPO_DIR/sv2/subprotocols/template-distribution\" }"
-                 echo "mining_sv2 = { path = \"$REPO_DIR/sv2/subprotocols/mining\" }"
-                 echo "job_declaration_sv2 = { path = \"$REPO_DIR/sv2/subprotocols/job-declaration\" }"
-                 echo "channels_sv2 = { path = \"$REPO_DIR/sv2/channels-sv2\" }"
-                 echo "parsers_sv2 = { path = \"$REPO_DIR/sv2/parsers-sv2\" }"
-                 echo "buffer_sv2 = { path = \"$REPO_DIR/utils/buffer\" }"
-                 echo "error_handling = { path = \"$REPO_DIR/utils/error-handling\" }"
-                 echo "rpc_sv2 = { path = \"$REPO_DIR/roles-utils/rpc\" }"
+                 echo "stratum-common = { path = \"$PR_CHANGES_DIR/common\" }"
+                 echo "sv1_api = { path = \"$PR_CHANGES_DIR/sv1\" }"
+                 echo "key-utils = { path = \"$PR_CHANGES_DIR/utils/key-utils\" }"
+                 echo "config-helpers = { path = \"$PR_CHANGES_DIR/roles-utils/config-helpers\" }"
+                 echo "roles_logic_sv2 = { path = \"$PR_CHANGES_DIR/sv2/roles-logic-sv2\" }"
+                 echo "network_helpers_sv2 = { path = \"$PR_CHANGES_DIR/roles-utils/network-helpers\" }"
+                 echo "binary_sv2 = { path = \"$PR_CHANGES_DIR/sv2/binary-sv2\" }"
+                 echo "binary_codec_sv2 = { path = \"$PR_CHANGES_DIR/sv2/binary-sv2/codec\" }"
+                 echo "derive_codec_sv2 = { path = \"$PR_CHANGES_DIR/sv2/binary-sv2/derive_codec\" }"
+                 echo "noise_sv2 = { path = \"$PR_CHANGES_DIR/sv2/noise-sv2\" }"
+                 echo "framing_sv2 = { path = \"$PR_CHANGES_DIR/sv2/framing-sv2\" }"
+                 echo "codec_sv2 = { path = \"$PR_CHANGES_DIR/sv2/codec-sv2\" }"
+                 echo "common_messages_sv2 = { path = \"$PR_CHANGES_DIR/sv2/subprotocols/common-messages\" }"
+                 echo "template_distribution_sv2 = { path = \"$PR_CHANGES_DIR/sv2/subprotocols/template-distribution\" }"
+                 echo "mining_sv2 = { path = \"$PR_CHANGES_DIR/sv2/subprotocols/mining\" }"
+                 echo "job_declaration_sv2 = { path = \"$PR_CHANGES_DIR/sv2/subprotocols/job-declaration\" }"
+                 echo "channels_sv2 = { path = \"$PR_CHANGES_DIR/sv2/channels-sv2\" }"
+                 echo "parsers_sv2 = { path = \"$PR_CHANGES_DIR/sv2/parsers-sv2\" }"
+                 echo "buffer_sv2 = { path = \"$PR_CHANGES_DIR/utils/buffer\" }"
+                 echo "error_handling = { path = \"$PR_CHANGES_DIR/utils/error-handling\" }"
+                 echo "rpc_sv2 = { path = \"$PR_CHANGES_DIR/roles-utils/rpc\" }"
                } >> Cargo.toml
+               echo "✅ All 21 sv2-core-test crates will now use YOUR PR changes"
               ;;
               
             "sv2-pool-apps-test")
-              REPO_DIR="../repo-under-test"
-              echo "🔄 Setting up sv2-pool-apps-test testing with local paths..."
+              PR_CHANGES_DIR="../pr-changes"
+              echo "📋 Testing sv2-pool-apps-test PR - will redirect pool apps to YOUR changes"
               
-              # Verify directory structure
-              if [ ! -d "$REPO_DIR/pool" ] || [ ! -d "$REPO_DIR/jd-server" ]; then
-                echo "❌ sv2-pool-apps-test structure not found"
-                ls -la $REPO_DIR/
+              # Verify YOUR PR changes have the expected structure
+              if [ ! -d "$PR_CHANGES_DIR/pool" ] || [ ! -d "$PR_CHANGES_DIR/jd-server" ]; then
+                echo "❌ Expected sv2-pool-apps-test structure not found in YOUR PR"
+                echo "📁 Contents of your PR changes:"
+                ls -la $PR_CHANGES_DIR/
                 exit 1
               fi
+              echo "✅ Verified YOUR sv2-pool-apps-test PR has expected directory structure"
               
-              # Update direct dependencies
-              sed -i "s|jd_server = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\" }|jd_server = { path = \"$REPO_DIR/jd-server\" }|g" Cargo.toml
-              sed -i "s|pool_sv2 = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\" }|pool_sv2 = { path = \"$REPO_DIR/pool\" }|g" Cargo.toml
+              # Redirect integration test dependencies to use YOUR PR changes
+              echo "🔀 Redirecting pool app dependencies to YOUR PR changes..."
+              sed -i "s|jd_server = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\" }|jd_server = { path = \"$PR_CHANGES_DIR/jd-server\" }|g" Cargo.toml
+              sed -i "s|pool_sv2 = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\" }|pool_sv2 = { path = \"$PR_CHANGES_DIR/pool\" }|g" Cargo.toml
 
-                             # Add patch section  
+               # Force pool app crates to use YOUR PR changes  
+               echo "🎯 Adding patch to force pool app crates to use YOUR changes..."
                {
                  echo ""
-                 echo "# Override git dependencies with local paths to avoid version conflicts"
+                 echo "# INTEGRATION TEST OVERRIDE: Use PR changes for pool app crates"
                  echo "[patch.\"https://github.com/GitGab19/sv2-pool-apps-test\"]"
-                 echo "jd_server = { path = \"$REPO_DIR/jd-server\" }"
-                 echo "pool_sv2 = { path = \"$REPO_DIR/pool\" }"
+                 echo "jd_server = { path = \"$PR_CHANGES_DIR/jd-server\" }"
+                 echo "pool_sv2 = { path = \"$PR_CHANGES_DIR/pool\" }"
                } >> Cargo.toml
+               echo "✅ Pool app crates will now use YOUR PR changes"
               ;;
               
             "sv2-miner-apps-test")
-              REPO_DIR="../repo-under-test"
-              echo "🔄 Setting up sv2-miner-apps-test testing with local paths..."
+              PR_CHANGES_DIR="../pr-changes"
+              echo "📋 Testing sv2-miner-apps-test PR - will redirect miner apps to YOUR changes"
               
-              # Verify directory structure
-              if [ ! -d "$REPO_DIR/jd-client" ] || [ ! -d "$REPO_DIR/translator" ]; then
-                echo "❌ sv2-miner-apps-test structure not found"
-                ls -la $REPO_DIR/
+              # Verify YOUR PR changes have the expected structure
+              if [ ! -d "$PR_CHANGES_DIR/jd-client" ] || [ ! -d "$PR_CHANGES_DIR/translator" ]; then
+                echo "❌ Expected sv2-miner-apps-test structure not found in YOUR PR"
+                echo "📁 Contents of your PR changes:"
+                ls -la $PR_CHANGES_DIR/
                 exit 1
               fi
+              echo "✅ Verified YOUR sv2-miner-apps-test PR has expected directory structure"
               
-              # Update direct dependencies
-              sed -i "s|jd_client = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\" }|jd_client = { path = \"$REPO_DIR/jd-client\" }|g" Cargo.toml
-              sed -i "s|translator_sv2 = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\" }|translator_sv2 = { path = \"$REPO_DIR/translator\" }|g" Cargo.toml
-              sed -i "s|mining_device = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\" }|mining_device = { path = \"$REPO_DIR/test-utils/mining-device\" }|g" Cargo.toml
-              sed -i "s|mining_device_sv1 = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\" }|mining_device_sv1 = { path = \"$REPO_DIR/test-utils/mining-device-sv1\" }|g" Cargo.toml
+              # Redirect integration test dependencies to use YOUR PR changes
+              echo "🔀 Redirecting miner app dependencies to YOUR PR changes..."
+              sed -i "s|jd_client = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\" }|jd_client = { path = \"$PR_CHANGES_DIR/jd-client\" }|g" Cargo.toml
+              sed -i "s|translator_sv2 = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\" }|translator_sv2 = { path = \"$PR_CHANGES_DIR/translator\" }|g" Cargo.toml
+              sed -i "s|mining_device = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\" }|mining_device = { path = \"$PR_CHANGES_DIR/test-utils/mining-device\" }|g" Cargo.toml
+              sed -i "s|mining_device_sv1 = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\" }|mining_device_sv1 = { path = \"$PR_CHANGES_DIR/test-utils/mining-device-sv1\" }|g" Cargo.toml
 
-                             # Add patch section
+               # Force miner app crates to use YOUR PR changes
+               echo "🎯 Adding patch to force miner app crates to use YOUR changes..."
                {
                  echo ""
-                 echo "# Override git dependencies with local paths to avoid version conflicts"
+                 echo "# INTEGRATION TEST OVERRIDE: Use PR changes for miner app crates"
                  echo "[patch.\"https://github.com/GitGab19/sv2-miner-apps-test\"]"
-                 echo "jd_client = { path = \"$REPO_DIR/jd-client\" }"
-                 echo "translator_sv2 = { path = \"$REPO_DIR/translator\" }"
-                 echo "mining_device = { path = \"$REPO_DIR/test-utils/mining-device\" }"
-                 echo "mining_device_sv1 = { path = \"$REPO_DIR/test-utils/mining-device-sv1\" }"
+                 echo "jd_client = { path = \"$PR_CHANGES_DIR/jd-client\" }"
+                 echo "translator_sv2 = { path = \"$PR_CHANGES_DIR/translator\" }"
+                 echo "mining_device = { path = \"$PR_CHANGES_DIR/test-utils/mining-device\" }"
+                 echo "mining_device_sv1 = { path = \"$PR_CHANGES_DIR/test-utils/mining-device-sv1\" }"
                } >> Cargo.toml
+               echo "✅ Miner app crates will now use YOUR PR changes"
               ;;
               
             *)
@@ -210,9 +276,234 @@ jobs:
               ;;
           esac
           
-          echo "✅ Dependencies updated successfully"
-          echo "📄 Updated Cargo.toml preview:"
-          tail -30 Cargo.toml
+          echo ""
+          echo "🎉 =============================================="
+          echo "🎉 CONFIGURATION COMPLETE!"
+          echo "🎉 =============================================="
+          echo "✅ Integration tests are now configured to use YOUR PR changes"
+          echo "📋 What happens next:"
+          echo "   1. Cargo will build YOUR changes from pr-changes/"
+          echo "   2. Integration tests will run using YOUR code"
+          echo "   3. Any failures indicate YOUR changes break integration"
+          echo ""
+          echo "📄 Updated integration test configuration (last 15 lines):"
+          tail -15 Cargo.toml
+          
+      - name: 🔍 Verify YOUR PR changes are being used
+        run: |
+          cd integration-tests
+          echo "🔍 =============================================="
+          echo "🔍 VERIFYING YOUR PR CHANGES ARE BEING USED"
+          echo "🔍 =============================================="
+          echo "📋 Checking that integration tests will actually use YOUR code..."
+          
+          # Show the complete dependency configuration
+          echo "📋 Complete Cargo.toml dependencies section:"
+          grep -A 50 '^\[dependencies\]' Cargo.toml || echo "No dependencies section found"
+          
+          echo ""
+          echo "📋 Complete patch sections:"
+          grep -A 50 '^\[patch' Cargo.toml || echo "No patch sections found"
+          
+          echo ""
+          echo "🔍 Dependency resolution check using cargo tree..."
+          
+          # Show which specific paths/versions are being used for key crates
+          case "${{ inputs.repo_name }}" in
+            "sv2-core-test")
+              echo "🧪 Verifying sv2-core-test crates are using PR paths:"
+              cargo tree --features sv1 -e normal --prefix none | grep -E "(stratum-common|sv1_api|key-utils|config-helpers|roles_logic_sv2|network_helpers_sv2|binary_sv2|mining_sv2|job_declaration_sv2)" | head -20
+              echo ""
+              echo "📂 Expected path prefix: ../repo-under-test/"
+              echo "✅ If you see 'file://' URLs pointing to ../repo-under-test/, the PR code is being used!"
+              ;;
+              
+            "sv2-pool-apps-test")
+              echo "🧪 Verifying sv2-pool-apps-test crates are using PR paths:"
+              cargo tree --features sv1 -e normal --prefix none | grep -E "(jd_server|pool_sv2)" | head -10
+              echo ""
+              echo "🧪 Verifying sv2-core-test crates are using stable main branch:"
+              cargo tree --features sv1 -e normal --prefix none | grep -E "(stratum-common|sv1_api|key-utils)" | head -10
+              echo ""
+              echo "📂 Expected: pool apps from ../repo-under-test/, core from git main"
+              ;;
+              
+            "sv2-miner-apps-test")
+              echo "🧪 Verifying sv2-miner-apps-test crates are using PR paths:"
+              cargo tree --features sv1 -e normal --prefix none | grep -E "(jd_client|translator_sv2|mining_device)" | head -10
+              echo ""
+              echo "🧪 Verifying sv2-core-test crates are using stable main branch:"
+              cargo tree --features sv1 -e normal --prefix none | grep -E "(stratum-common|sv1_api|key-utils)" | head -10
+              echo ""
+              echo "📂 Expected: miner apps from ../repo-under-test/, core from git main"
+              ;;
+          esac
+          
+          echo ""
+          echo "🔍 Checking for any duplicate crate versions (should be minimal):"
+          cargo tree --features sv1 --duplicates || echo "No duplicate dependencies found"
+          
+          echo ""
+          echo "🎯 Summary: The above output shows exactly which versions/paths are being used."
+          echo "   - file:// URLs = local PR code ✅"
+          echo "   - git URLs = remote repository code ✅" 
+          echo "   - Duplicates = potential conflicts ⚠️"
+          
+      - name: Generate detailed dependency report
+        run: |
+          cd integration-tests
+          echo "📊 Generating comprehensive dependency verification report..."
+          
+          # Create a detailed report file
+          REPORT_FILE="dependency-verification-report.txt"
+          
+          {
+            echo "=============================================="
+            echo "SV2 Integration Test Dependency Report"
+            echo "=============================================="
+            echo "Repository being tested: ${{ inputs.repo_name }}"
+            echo "Branch: ${{ inputs.branch_name }}"
+            echo "Generated at: $(date)"
+            echo ""
+            
+            echo "🔍 VERIFICATION: Which code is actually being used?"
+            echo ""
+            
+            echo "📋 Direct Dependencies in Cargo.toml:"
+            echo "----------------------------------------------"
+            grep -E "(stratum-common|sv1_api|key-utils|config-helpers|jd_server|pool_sv2|jd_client|translator_sv2|mining_device)" Cargo.toml || echo "No matching dependencies found"
+            echo ""
+            
+            echo "📋 Patch Sections (Override Rules):"
+            echo "----------------------------------------------"
+            sed -n '/^\[patch/,/^$/p' Cargo.toml
+            echo ""
+            
+            echo "🌳 Resolved Dependency Tree (Key SV2 Crates):"
+            echo "----------------------------------------------"
+            echo "Legend: file:// = PR code, git:// = remote repo"
+            echo ""
+            
+            # Show resolved paths for all SV2 crates
+            cargo tree --features sv1 -e normal --format "{p} [{f}]" | grep -E "(stratum-common|sv1_api|key-utils|config-helpers|roles_logic_sv2|network_helpers_sv2|binary_sv2|binary_codec_sv2|derive_codec_sv2|noise_sv2|framing_sv2|codec_sv2|common_messages_sv2|template_distribution_sv2|mining_sv2|job_declaration_sv2|channels_sv2|parsers_sv2|buffer_sv2|error_handling|rpc_sv2|jd_server|pool_sv2|jd_client|translator_sv2|mining_device)" | sort | uniq
+            echo ""
+            
+            echo "✅ VALIDATION CHECKLIST:"
+            echo "----------------------------------------------"
+            
+            case "${{ inputs.repo_name }}" in
+              "sv2-core-test")
+                echo "For sv2-core-test PR testing, we expect:"
+                echo "• All sv2-core-test crates should show 'file://' paths to ../repo-under-test/"
+                echo "• Pool and miner app crates should show 'git://' URLs to main branches"
+                echo ""
+                echo "🔍 Checking sv2-core-test crates:"
+                cargo tree --features sv1 -e normal --format "{p} [{f}]" | grep -E "(stratum-common|sv1_api|key-utils|config-helpers|roles_logic_sv2|network_helpers_sv2|binary_sv2)" | while read line; do
+                  if echo "$line" | grep -q "file://"; then
+                    echo "✅ $line"
+                  else
+                    echo "⚠️  $line (expected file://, got git://)"
+                  fi
+                done
+                ;;
+                
+              "sv2-pool-apps-test")
+                echo "For sv2-pool-apps-test PR testing, we expect:"
+                echo "• Pool app crates (jd_server, pool_sv2) should show 'file://' paths"
+                echo "• sv2-core-test crates should show 'git://' URLs to main branch"
+                echo "• Miner app crates should show 'git://' URLs to main branch"
+                echo ""
+                echo "🔍 Checking pool app crates:"
+                cargo tree --features sv1 -e normal --format "{p} [{f}]" | grep -E "(jd_server|pool_sv2)" | while read line; do
+                  if echo "$line" | grep -q "file://"; then
+                    echo "✅ $line"
+                  else
+                    echo "⚠️  $line (expected file://, got git://)"
+                  fi
+                done
+                ;;
+                
+              "sv2-miner-apps-test")
+                echo "For sv2-miner-apps-test PR testing, we expect:"
+                echo "• Miner app crates (jd_client, translator_sv2, mining_device*) should show 'file://' paths"
+                echo "• sv2-core-test crates should show 'git://' URLs to main branch"
+                echo "• Pool app crates should show 'git://' URLs to main branch"
+                echo ""
+                echo "🔍 Checking miner app crates:"
+                cargo tree --features sv1 -e normal --format "{p} [{f}]" | grep -E "(jd_client|translator_sv2|mining_device)" | while read line; do
+                  if echo "$line" | grep -q "file://"; then
+                    echo "✅ $line"
+                  else
+                    echo "⚠️  $line (expected file://, got git://)"
+                  fi
+                done
+                ;;
+            esac
+            
+            echo ""
+            echo "🚨 CONFLICT CHECK:"
+            echo "----------------------------------------------"
+            DUPLICATES=$(cargo tree --features sv1 --duplicates 2>/dev/null || echo "")
+            if [ -n "$DUPLICATES" ]; then
+              echo "⚠️  Found duplicate dependencies (potential conflicts):"
+              echo "$DUPLICATES"
+            else
+              echo "✅ No duplicate dependencies found"
+            fi
+            
+            echo ""
+            echo "=============================================="
+            echo "End of Report"
+            echo "=============================================="
+            
+          } | tee "$REPORT_FILE"
+          
+          echo ""
+          echo "📄 Complete dependency verification report saved to: $REPORT_FILE"
+          echo "🔍 Review this report to confirm PR dependencies are being used correctly!"
+          
+      - name: Summary - How to verify PR dependencies are used
+        run: |
+          echo "🎯 VERIFICATION GUIDE: How to confirm PR dependencies are being used"
+          echo "=================================================================="
+          echo ""
+          echo "Look for these indicators in the logs above:"
+          echo ""
+          echo "✅ SUCCESS INDICATORS:"
+          echo "  • Dependencies show 'file://' paths pointing to ../repo-under-test/"
+          echo "  • Patch sections show correct local path mappings"
+          echo "  • No duplicate version conflicts"
+          echo "  • Cargo tree shows expected sources for each crate type"
+          echo ""
+          echo "❌ FAILURE INDICATORS:"
+          echo "  • Dependencies still show 'git://' URLs when they should be local"
+          echo "  • Multiple versions of the same crate (duplicates)"
+          echo "  • Missing patch sections"
+          echo "  • Path resolution errors"
+          echo ""
+          echo "📋 WHAT SHOULD BE LOCAL (file://) vs REMOTE (git://):"
+          
+          case "${{ inputs.repo_name }}" in
+            "sv2-core-test")
+              echo "  🧪 Testing sv2-core-test PR:"
+              echo "    LOCAL (file://):  All 21 sv2-core-test crates"
+              echo "    REMOTE (git://):  jd_server, pool_sv2, jd_client, translator_sv2, mining_device*"
+              ;;
+            "sv2-pool-apps-test")
+              echo "  🏊 Testing sv2-pool-apps-test PR:"
+              echo "    LOCAL (file://):  jd_server, pool_sv2"
+              echo "    REMOTE (git://):  All sv2-core-test crates, miner app crates"
+              ;;
+            "sv2-miner-apps-test")
+              echo "  ⛏️  Testing sv2-miner-apps-test PR:"
+              echo "    LOCAL (file://):  jd_client, translator_sv2, mining_device, mining_device_sv1"
+              echo "    REMOTE (git://):  All sv2-core-test crates, pool app crates"
+              ;;
+          esac
+          
+          echo ""
+          echo "🔍 If you see the expected LOCAL/REMOTE pattern above, the PR is being tested correctly!"
+          echo "=================================================================="
           
       - name: Run integration tests
         timeout-minutes: 30
