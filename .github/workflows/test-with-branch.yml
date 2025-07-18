@@ -155,32 +155,32 @@ jobs:
 
               # Create comprehensive .cargo/config.toml with all sv2-core-test crates
               mkdir -p .cargo
-              cat > .cargo/config.toml <<EOL
-              # Patch configuration for testing with PR branch of sv2-core-test
-              [patch."$REPO_URL"]
-              stratum-common = { path = "$SV2_CORE_DIR/common" }
-              sv1_api = { path = "$SV2_CORE_DIR/sv1" }
-              key-utils = { path = "$SV2_CORE_DIR/utils/key-utils" }
-              config-helpers = { path = "$SV2_CORE_DIR/roles-utils/config-helpers" }
-              network_helpers_sv2 = { path = "$SV2_CORE_DIR/roles-utils/network-helpers" }
-              rpc_sv2 = { path = "$SV2_CORE_DIR/roles-utils/rpc" }
-              roles_logic_sv2 = { path = "$SV2_CORE_DIR/sv2/roles-logic-sv2" }
-              binary_sv2 = { path = "$SV2_CORE_DIR/sv2/binary-sv2" }
-              binary_codec_sv2 = { path = "$SV2_CORE_DIR/sv2/binary-sv2/codec" }
-              derive_codec_sv2 = { path = "$SV2_CORE_DIR/sv2/binary-sv2/derive_codec" }
-              noise_sv2 = { path = "$SV2_CORE_DIR/sv2/noise-sv2" }
-              framing_sv2 = { path = "$SV2_CORE_DIR/sv2/framing-sv2" }
-              codec_sv2 = { path = "$SV2_CORE_DIR/sv2/codec-sv2" }
-              common_messages_sv2 = { path = "$SV2_CORE_DIR/sv2/subprotocols/common-messages" }
-              template_distribution_sv2 = { path = "$SV2_CORE_DIR/sv2/subprotocols/template-distribution" }
-              mining_sv2 = { path = "$SV2_CORE_DIR/sv2/subprotocols/mining" }
-              job_declaration_sv2 = { path = "$SV2_CORE_DIR/sv2/subprotocols/job-declaration" }
-              channels_sv2 = { path = "$SV2_CORE_DIR/sv2/channels-sv2" }
-              parsers_sv2 = { path = "$SV2_CORE_DIR/sv2/parsers-sv2" }
-              buffer_sv2 = { path = "$SV2_CORE_DIR/utils/buffer" }
-              error_handling = { path = "$SV2_CORE_DIR/utils/error-handling" }
-              bip32_key_derivation = { path = "$SV2_CORE_DIR/utils/bip32-key-derivation" }
-              EOL
+              cat > .cargo/config.toml <<'EOL'
+# Patch configuration for testing with PR branch of sv2-core-test
+[patch."$REPO_URL"]
+stratum-common = { path = "$SV2_CORE_DIR/common" }
+sv1_api = { path = "$SV2_CORE_DIR/sv1" }
+key-utils = { path = "$SV2_CORE_DIR/utils/key-utils" }
+config-helpers = { path = "$SV2_CORE_DIR/roles-utils/config-helpers" }
+network_helpers_sv2 = { path = "$SV2_CORE_DIR/roles-utils/network-helpers" }
+rpc_sv2 = { path = "$SV2_CORE_DIR/roles-utils/rpc" }
+roles_logic_sv2 = { path = "$SV2_CORE_DIR/sv2/roles-logic-sv2" }
+binary_sv2 = { path = "$SV2_CORE_DIR/sv2/binary-sv2" }
+binary_codec_sv2 = { path = "$SV2_CORE_DIR/sv2/binary-sv2/codec" }
+derive_codec_sv2 = { path = "$SV2_CORE_DIR/sv2/binary-sv2/derive_codec" }
+noise_sv2 = { path = "$SV2_CORE_DIR/sv2/noise-sv2" }
+framing_sv2 = { path = "$SV2_CORE_DIR/sv2/framing-sv2" }
+codec_sv2 = { path = "$SV2_CORE_DIR/sv2/codec-sv2" }
+common_messages_sv2 = { path = "$SV2_CORE_DIR/sv2/subprotocols/common-messages" }
+template_distribution_sv2 = { path = "$SV2_CORE_DIR/sv2/subprotocols/template-distribution" }
+mining_sv2 = { path = "$SV2_CORE_DIR/sv2/subprotocols/mining" }
+job_declaration_sv2 = { path = "$SV2_CORE_DIR/sv2/subprotocols/job-declaration" }
+channels_sv2 = { path = "$SV2_CORE_DIR/sv2/channels-sv2" }
+parsers_sv2 = { path = "$SV2_CORE_DIR/sv2/parsers-sv2" }
+buffer_sv2 = { path = "$SV2_CORE_DIR/utils/buffer" }
+error_handling = { path = "$SV2_CORE_DIR/utils/error-handling" }
+bip32_key_derivation = { path = "$SV2_CORE_DIR/utils/bip32-key-derivation" }
+EOL
 
               # Also patch the direct dependencies in Cargo.toml
               sed -i "s|stratum-common = { git = \"https://github.com/GitGab19/sv2-core-test\", branch = \"main\"|stratum-common = { path = \"$SV2_CORE_DIR/common\"|g" Cargo.toml
@@ -207,12 +207,12 @@ jobs:
               
               # Create .cargo/config.toml for pool apps
               mkdir -p .cargo
-              cat > .cargo/config.toml <<EOL
-              # Patch configuration for testing with PR branch of sv2-pool-apps-test
-              [patch."$REPO_URL"]
-              jd_server = { path = "$POOL_APPS_DIR/jd-server" }
-              pool_sv2 = { path = "$POOL_APPS_DIR/pool" }
-              EOL
+              cat > .cargo/config.toml <<'EOL'
+# Patch configuration for testing with PR branch of sv2-pool-apps-test
+[patch."$REPO_URL"]
+jd_server = { path = "$POOL_APPS_DIR/jd-server" }
+pool_sv2 = { path = "$POOL_APPS_DIR/pool" }
+EOL
 
               # Update direct dependencies
               sed -i "s|jd_server = { git = \"https://github.com/GitGab19/sv2-pool-apps-test\", branch = \"main\"|jd_server = { path = \"$POOL_APPS_DIR/jd-server\"|g" Cargo.toml
@@ -237,14 +237,14 @@ jobs:
               
               # Create .cargo/config.toml for miner apps
               mkdir -p .cargo
-              cat > .cargo/config.toml <<EOL
-              # Patch configuration for testing with PR branch of sv2-miner-apps-test
-              [patch."$REPO_URL"]
-              jd_client = { path = "$MINER_APPS_DIR/jd-client" }
-              translator_sv2 = { path = "$MINER_APPS_DIR/translator" }
-              mining_device = { path = "$MINER_APPS_DIR/test-utils/mining-device" }
-              mining_device_sv1 = { path = "$MINER_APPS_DIR/test-utils/mining-device-sv1" }
-              EOL
+              cat > .cargo/config.toml <<'EOL'
+# Patch configuration for testing with PR branch of sv2-miner-apps-test
+[patch."$REPO_URL"]
+jd_client = { path = "$MINER_APPS_DIR/jd-client" }
+translator_sv2 = { path = "$MINER_APPS_DIR/translator" }
+mining_device = { path = "$MINER_APPS_DIR/test-utils/mining-device" }
+mining_device_sv1 = { path = "$MINER_APPS_DIR/test-utils/mining-device-sv1" }
+EOL
 
               # Update direct dependencies
               sed -i "s|jd_client = { git = \"https://github.com/GitGab19/sv2-miner-apps-test\", branch = \"main\"|jd_client = { path = \"$MINER_APPS_DIR/jd-client\"|g" Cargo.toml
